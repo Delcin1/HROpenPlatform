@@ -1,0 +1,307 @@
+openapi: 3.0.0
+info:
+  title: HROpenPlatform Company OpenAPI 3.1.0 specification
+  description: HROpenPlatform Company OpenAPI 3.1.0 specification
+  version: 1.0.0
+externalDocs:
+  description: Find out more about Swagger
+  url: https://swagger.io
+paths:
+  /api/v1/company:
+    post:
+      tags:
+        - company
+      summary: Создать компанию
+      operationId: createCompanyProfile
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiCreateCompany'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiGetCompany'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Internal Server Error
+  /api/v1/company/{company_id}:
+    get:
+      tags:
+        - company
+      summary: Получить данные компании
+      operationId: fetchCompany
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: company_id
+          in: path
+          description: GUID или уникальное название компании
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiGetCompany'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not found
+        '500':
+          description: Internal Server Error
+    put:
+      tags:
+        - company
+      summary: Изменить данные компании
+      operationId: updateCompanyProfile
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: company_id
+          in: path
+          description: GUID или уникальное название компании
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiUpdateCompany'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiGetCompany'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Internal Server Error
+    delete:
+      tags:
+        - company
+      summary: Удалить компанию
+      operationId: deleteCompany
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: company_id
+          in: path
+          description: GUID или уникальное название компании
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: successful operation
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Internal Server Error
+
+  /api/v1/company/search:
+    get:
+      tags:
+        - company
+      summary: Получить данные чужой компании по названию
+      operationId: searchCompanyByName
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - in: query
+          name: name
+          description: Часть названия компании
+          schema:
+            type: string
+          required: true
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSearchCompanyResp'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not found
+        '500':
+          description: Internal Server Error
+
+components:
+  schemas:
+    ApiGetCompany:
+      type: object
+      required:
+        - guid
+        - name
+      properties:
+        guid:
+          type: string
+          description: GUID компании
+          example: 123e4567-e89b-12d3-a456-426614174000
+        name:
+          type: string
+          description: Название компании
+          example: ООО "Рога и копыта"
+        description:
+          type: string
+          description: Описание компании
+          example: "Компания занимается производством рогов и копыт"
+        address:
+          type: string
+          description: Адрес компании
+          example: "г. Москва, ул. Ленина, д. 1"
+        phone:
+          type: string
+          description: Телефон компании
+          example: "74951234567"
+        email:
+          type: string
+          description: Email компании
+          example: company@mail.com
+        website:
+          type: string
+          description: Сайт компании
+          example: company.com
+        avatar:
+          type: string
+          description: Логотип компании
+          example: "https://example.com/logo.png"
+        short_link_name:
+          type: string
+          description: Уникальное название компании для короткой ссылки
+          example: "rogakopyta"
+
+    ApiCreateCompany:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Название компании
+          example: ООО "Рога и копыта"
+        description:
+          type: string
+          description: Описание компании
+          example: "Компания занимается производством рогов и копыт"
+        address:
+          type: string
+          description: Адрес компании
+          example: "г. Москва, ул. Ленина, д. 1"
+        phone:
+          type: string
+          description: Телефон компании
+          example: "74951234567"
+        email:
+          type: string
+          description: Email компании
+          example: company@mail.com
+        website:
+          type: string
+          description: Сайт компании
+          example: company.com
+        avatar:
+          type: string
+          description: Логотип компании
+          example: "https://example.com/logo.png"
+        short_link_name:
+          type: string
+          description: Уникальное название компании для короткой ссылки
+          example: "rogakopyta"
+
+    ApiUpdateCompany:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Название компании
+          example: ООО "Рога и копыта"
+        description:
+          type: string
+          description: Описание компании
+          example: "Компания занимается производством рогов и копыт"
+        address:
+          type: string
+          description: Адрес компании
+          example: "г. Москва, ул. Ленина, д. 1"
+        phone:
+          type: string
+          description: Телефон компании
+          example: "74951234567"
+        email:
+          type: string
+          description: Email компании
+          example: company@mail.com
+        website:
+          type: string
+          description: Сайт компании
+          example: company.com
+        avatar:
+          type: string
+          description: Логотип компании
+          example: "https://example.com/logo.png"
+        short_link_name:
+          type: string
+          description: Уникальное название компании для короткой ссылки
+          example: "rogakopyta"
+
+    ShortCompany:
+      type: object
+      required:
+        - guid
+        - name
+      properties:
+        guid:
+          type: string
+          description: GUID компании
+          example: 123e4567-e89b-12d3-a456-426614174000
+        name:
+          type: string
+          description: Название компании
+          example: ООО "Рога и копыта"
+        short_link_name:
+          type: string
+          description: Уникальное название компании для короткой ссылки
+          example: "rogakopyta"
+
+    ApiSearchCompanyResp:
+      type: object
+      required:
+        - companies
+      properties:
+        companies:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShortCompany'
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

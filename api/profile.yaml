@@ -1,0 +1,332 @@
+openapi: 3.0.0
+info:
+  title: HROpenPlatform Profile OpenAPI 3.1.0 specification
+  description: HROpenPlatform Profile OpenAPI 3.1.0 specification
+  version: 1.0.0
+externalDocs:
+  description: Find out more about Swagger
+  url: https://swagger.io
+paths:
+  /api/v1/profile:
+    get:
+      tags:
+        - profile
+      summary: Получить данные профиля
+      operationId: fetchOwnProfile
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiGetProfile'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal Server Error
+    put:
+      tags:
+        - profile
+      summary: Изменить данных профиля
+      operationId: storeOwnProfile
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiUpdateProfile'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiGetProfile'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal Server Error
+    delete:
+      tags:
+        - profile
+      summary: Удалить профиль
+      operationId: deleteOwnProfile
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          description: successful operation
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal Server Error
+
+  /api/v1/profile/search:
+    get:
+      tags:
+        - profile
+      summary: Найти данные чужого профиля по части ФИО
+      operationId: searchProfileByDescription
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: description
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Часть ФИО
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSearchProfileResp'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not found
+        '500':
+          description: Internal Server Error
+
+  /api/v1/profile/experience:
+    get:
+      tags:
+        - profile
+      summary: Получить данные опыта работы
+      operationId: fetchOwnExperience
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiGetExperience'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal Server Error
+    put:
+      tags:
+        - profile
+      summary: Изменить данные опыта работы
+      operationId: storeOwnExperience
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiUpdateExperience'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiGetExperience'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal Server Error
+
+components:
+  schemas:
+    ApiGetProfile:
+      type: object
+      required:
+        - guid
+        - is_hr
+        - description
+        - phone
+        - email
+        - birthdate
+        - gender
+        - created_at
+        - updated_at
+      properties:
+        guid:
+          type: string
+          description: GUID пользователя
+          example: 123e4567-e89b-12d3-a456-426614174000
+        is_hr:
+          type: boolean
+          description: Является ли пользователь HR'ом
+          example: false
+        description:
+          type: string
+          description: ФИО пользователя
+          example: Иванов Иван Иванович
+        phone:
+          type: string
+          description: Номер телефона
+          example: 79991119911
+        email:
+          type: string
+          description: Email пользователя
+          example: example@mail.com
+        birthdate:
+          type: string
+          description: Дата рождения пользователя
+          example: 1990-01-01
+        gender:
+          type: string
+          description: Пол пользователя
+          example: male
+        avatar:
+          type: string
+          description: Ссылка на аватар пользователя
+          example: https://example.com/avatar.jpg
+        cv:
+          type: string
+          description: Ссылка на резюме пользователя
+          example: https://example.com/cv.pdf
+        created_at:
+          type: string
+          format: date-time
+          example: 2021-01-01T00:00:00Z
+        updated_at:
+          type: string
+          format: date-time
+          example: 2021-01-01T00:00:00Z
+        company_name:
+          type: string
+          description: Название компании в которой работает пользователь
+          example: ООО "Рога и копыта"
+
+    ApiUpdateProfile:
+      type: object
+      properties:
+        description:
+          type: string
+          description: ФИО пользователя
+          example: Иванов Иван Иванович
+        phone:
+          type: string
+          description: Номер телефона
+          example: 79991119911
+        email:
+          type: string
+          description: Email пользователя
+          example: example@mail.com
+        birthdate:
+          type: string
+          description: Дата рождения пользователя
+          example: 1990-01-01
+        gender:
+          type: string
+          description: Пол пользователя
+          example: male
+        avatar:
+          type: string
+          description: Ссылка на аватар пользователя
+          example: https://example.com/avatar.jpg
+        cv:
+          type: string
+          description: Ссылка на резюме пользователя
+          example: https://example.com/cv.pdf
+
+    ApiSearchProfileResp:
+      type: object
+      required:
+        - profiles
+      properties:
+        profiles:
+          type: array
+          items:
+              $ref: '#/components/schemas/ShortProfile'
+
+    ShortProfile:
+      type: object
+      required:
+        - guid
+        - is_hr
+        - description
+        - updated_at
+      properties:
+        guid:
+          type: string
+          description: GUID пользователя
+          example: 123e4567-e89b-12d3-a456-426614174000
+        is_hr:
+          type: boolean
+          description: Является ли пользователь HR'ом
+          example: false
+        description:
+          type: string
+          description: ФИО пользователя
+          example: Иванов Иван Иванович
+        company_name:
+          type: string
+          description: Название компании в которой работает пользователь
+          example: ООО "Рога и копыта"
+        updated_at:
+          type: string
+          format: date-time
+          example: 2021-01-01T00:00:00Z
+
+    ApiGetExperience:
+      type: object
+      required:
+        - experience
+      properties:
+        experience:
+          type: array
+          items:
+            $ref: '#/components/schemas/Experience'
+
+    ApiUpdateExperience:
+      type: object
+      required:
+        - experience
+      properties:
+        experience:
+          type: array
+          items:
+            $ref: '#/components/schemas/Experience'
+
+    Experience:
+      type: object
+      required:
+        - company_name
+        - position
+        - start_date
+      properties:
+        guid:
+          type: string
+          description: GUID компании
+          example: 123e4567-e89b-12d3-a456-426614174000
+        company_name:
+          type: string
+          description: Название компании
+          example: ООО "Рога и копыта"
+        position:
+          type: string
+          description: Должность
+          example: Разработчик
+        start_date:
+          type: string
+          description: Дата начала работы
+          example: 2021-01-01
+        end_date:
+          type: string
+          description: Дата окончания работы
+          example: 2021-01-01
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
