@@ -1,0 +1,7 @@
+package: company
+output: ./backend/platform_service/internal/router/company/company.gen.go
+generate:
+  models: true
+  chi-server: true
+compatibility:
+  apply-chi-middleware-first-to-last: true

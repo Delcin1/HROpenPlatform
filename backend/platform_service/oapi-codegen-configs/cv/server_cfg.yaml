@@ -1,0 +1,7 @@
+package: cv
+output: ./backend/platform_service/internal/router/cv/cv.gen.go
+generate:
+  models: true
+  chi-server: true
+compatibility:
+  apply-chi-middleware-first-to-last: true

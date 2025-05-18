@@ -1,0 +1,82 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "./auth/auth.sql"
+    schema: "../../../migrations/"
+    gen:
+      go:
+        package: "auth"
+        out: "auth"
+        sql_package: "pgx/v4"
+        emit_interface: true
+        omit_unused_structs: true
+        emit_methods_with_db_argument: true
+        overrides:
+        - db_type: "uuid"
+          go_type:
+            import: "github.com/google/uuid"
+            type: "UUID"
+  - engine: "postgresql"
+    queries: "./user/user.sql"
+    schema: "../../../migrations/"
+    gen:
+      go:
+        package: "user"
+        out: "user"
+        sql_package: "pgx/v4"
+        emit_interface: true
+        omit_unused_structs: true
+        emit_methods_with_db_argument: true
+        overrides:
+        - db_type: "uuid"
+          go_type:
+            import: "github.com/google/uuid"
+            type: "UUID"
+  - engine: "postgresql"
+    queries: "./profile/profile.sql"
+    schema: "../../../migrations/"
+    gen:
+      go:
+        package: "profile"
+        out: "profile"
+        sql_package: "pgx/v4"
+        emit_interface: true
+        omit_unused_structs: true
+        emit_methods_with_db_argument: true
+        overrides:
+        - db_type: "uuid"
+          go_type:
+            import: "github.com/google/uuid"
+            type: "UUID"
+  - engine: "postgresql"
+    queries: "./company/company.sql"
+    schema: "../../../migrations/"
+    gen:
+      go:
+        package: "company"
+        out: "company"
+        sql_package: "pgx/v4"
+        emit_interface: true
+        omit_unused_structs: true
+        emit_methods_with_db_argument: true
+        overrides:
+        - db_type: "uuid"
+          go_type:
+            import: "github.com/google/uuid"
+            type: "UUID"
+  - engine: "postgresql"
+    queries: "./cv/cv.sql"
+    schema: "../../../migrations/"
+    gen:
+      go:
+        package: "cv"
+        out: "cv"
+        sql_package: "pgx/v4"
+        emit_interface: true
+        omit_unused_structs: true
+        emit_methods_with_db_argument: true
+        overrides:
+        - db_type: "uuid"
+          go_type:
+            import: "github.com/google/uuid"
+            type: "UUID"
