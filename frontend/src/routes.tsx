@@ -1,0 +1,36 @@
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { Navigation } from './components/Navigation';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { Login } from './pages/Login';
+import { Register } from './pages/Register';
+import { Restore } from './pages/Restore';
+import { Profile } from './pages/Profile';
+import { Companies } from './pages/Companies';
+import { CompanyDetails } from './pages/CompanyDetails';
+import { NewCompany } from './pages/NewCompany';
+import { CV } from './pages/CV';
+
+export const AppRoutes = () => {
+  return (
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/restore" element={<Restore />} />
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <Navigation />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Navigate to="/profile" replace />} />
+        <Route path="profile" element={<Profile />} />
+        <Route path="companies" element={<Companies />} />
+        <Route path="companies/new" element={<NewCompany />} />
+        <Route path="companies/:id" element={<CompanyDetails />} />
+        <Route path="cv" element={<CV />} />
+      </Route>
+    </Routes>
+  );
+}; 

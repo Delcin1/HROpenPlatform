@@ -19,14 +19,17 @@ type CompanyProfileCompany struct {
 }
 
 type ProfileProfile struct {
-	Guid        uuid.UUID
-	IsHr        sql.NullBool
-	Description string
-	Email       sql.NullString
-	Phone       sql.NullString
-	Gender      string
-	Birthday    string
-	Avatar      sql.NullString
-	CreatedAt   sql.NullTime
-	UpdatedAt   sql.NullTime
+	Guid              uuid.UUID
+	IsHr              sql.NullBool
+	Description       string
+	Email             string
+	Phone             sql.NullString
+	Gender            string
+	Birthday          string
+	Avatar            sql.NullString
+	PasswordHash      string
+	IsActive          bool
+	VerificationToken sql.NullString
+	CreatedAt         sql.NullTime
+	UpdatedAt         sql.NullTime
 }

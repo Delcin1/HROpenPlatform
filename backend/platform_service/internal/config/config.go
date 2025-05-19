@@ -25,6 +25,7 @@ type Config struct {
 	MinioSecretKey string `mapstructure:"MINIO_SECRET_KEY" required:"true" default:"Secure123$"`
 	MinioUseSSL    bool   `mapstructure:"MINIO_USE_SSL" required:"true" default:"false"`
 	MinioBucket    string `mapstructure:"MINIO_BUCKET" required:"true" default:"cv"`
+	MinioInsecure  bool   `mapstructure:"MINIO_INSECURE" required:"true" default:"true"`
 
 	// PSQL DB
 	// dbHost - host соединения

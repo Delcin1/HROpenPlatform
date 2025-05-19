@@ -22,24 +22,30 @@ INSERT INTO profile.profiles (
     gender,
     birthday,
     avatar,
+    password_hash,
+    is_active,
+    verification_token,
     created_at,
     updated_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
-) RETURNING guid, is_hr, description, email, phone, gender, birthday, avatar, created_at, updated_at
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+) RETURNING guid, is_hr, description, email, phone, gender, birthday, avatar, password_hash, is_active, verification_token, created_at, updated_at
 `
 
 type CreateProfileParams struct {
-	Guid        uuid.UUID
-	IsHr        sql.NullBool
-	Description string
-	Email       sql.NullString
-	Phone       sql.NullString
-	Gender      string
-	Birthday    string
-	Avatar      sql.NullString
-	CreatedAt   sql.NullTime
-	UpdatedAt   sql.NullTime
+	Guid              uuid.UUID
+	IsHr              sql.NullBool
+	Description       string
+	Email             string
+	Phone             sql.NullString
+	Gender            string
+	Birthday          string
+	Avatar            sql.NullString
+	PasswordHash      string
+	IsActive          bool
+	VerificationToken sql.NullString
+	CreatedAt         sql.NullTime
+	UpdatedAt         sql.NullTime
 }
 
 func (q *Queries) CreateProfile(ctx context.Context, db DBTX, arg CreateProfileParams) (ProfileProfile, error) {
@@ -52,6 +58,9 @@ func (q *Queries) CreateProfile(ctx context.Context, db DBTX, arg CreateProfileP
 		arg.Gender,
 		arg.Birthday,
 		arg.Avatar,
+		arg.PasswordHash,
+		arg.IsActive,
+		arg.VerificationToken,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
@@ -65,6 +74,9 @@ func (q *Queries) CreateProfile(ctx context.Context, db DBTX, arg CreateProfileP
 		&i.Gender,
 		&i.Birthday,
 		&i.Avatar,
+		&i.PasswordHash,
+		&i.IsActive,
+		&i.VerificationToken,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -81,10 +93,10 @@ func (q *Queries) DeleteProfile(ctx context.Context, db DBTX, guid uuid.UUID) er
 }
 
 const getProfileByEmail = `-- name: GetProfileByEmail :one
-SELECT guid, is_hr, description, email, phone, gender, birthday, avatar, created_at, updated_at FROM profile.profiles WHERE email = $1
+SELECT guid, is_hr, description, email, phone, gender, birthday, avatar, password_hash, is_active, verification_token, created_at, updated_at FROM profile.profiles WHERE email = $1
 `
 
-func (q *Queries) GetProfileByEmail(ctx context.Context, db DBTX, email sql.NullString) (ProfileProfile, error) {
+func (q *Queries) GetProfileByEmail(ctx context.Context, db DBTX, email string) (ProfileProfile, error) {
 	row := db.QueryRow(ctx, getProfileByEmail, email)
 	var i ProfileProfile
 	err := row.Scan(
@@ -96,6 +108,9 @@ func (q *Queries) GetProfileByEmail(ctx context.Context, db DBTX, email sql.Null
 		&i.Gender,
 		&i.Birthday,
 		&i.Avatar,
+		&i.PasswordHash,
+		&i.IsActive,
+		&i.VerificationToken,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -103,7 +118,7 @@ func (q *Queries) GetProfileByEmail(ctx context.Context, db DBTX, email sql.Null
 }
 
 const getProfileByGUID = `-- name: GetProfileByGUID :one
-SELECT guid, is_hr, description, email, phone, gender, birthday, avatar, created_at, updated_at FROM profile.profiles WHERE guid = $1
+SELECT guid, is_hr, description, email, phone, gender, birthday, avatar, password_hash, is_active, verification_token, created_at, updated_at FROM profile.profiles WHERE guid = $1
 `
 
 func (q *Queries) GetProfileByGUID(ctx context.Context, db DBTX, guid uuid.UUID) (ProfileProfile, error) {
@@ -118,6 +133,9 @@ func (q *Queries) GetProfileByGUID(ctx context.Context, db DBTX, guid uuid.UUID)
 		&i.Gender,
 		&i.Birthday,
 		&i.Avatar,
+		&i.PasswordHash,
+		&i.IsActive,
+		&i.VerificationToken,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -155,7 +173,7 @@ func (q *Queries) GetProfileCompanies(ctx context.Context, db DBTX, userGuid uui
 }
 
 const searchProfiles = `-- name: SearchProfiles :many
-SELECT guid, is_hr, description, email, phone, gender, birthday, avatar, created_at, updated_at FROM profile.profiles 
+SELECT guid, is_hr, description, email, phone, gender, birthday, avatar, password_hash, is_active, verification_token, created_at, updated_at FROM profile.profiles 
 WHERE description ILIKE '%' || $1 || '%'
 ORDER BY updated_at DESC
 `
@@ -178,6 +196,9 @@ func (q *Queries) SearchProfiles(ctx context.Context, db DBTX, dollar_1 sql.Null
 			&i.Gender,
 			&i.Birthday,
 			&i.Avatar,
+			&i.PasswordHash,
+			&i.IsActive,
+			&i.VerificationToken,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -201,21 +222,27 @@ SET
     gender = $5,
     birthday = $6,
     avatar = $7,
-    updated_at = $8
-WHERE guid = $9
-RETURNING guid, is_hr, description, email, phone, gender, birthday, avatar, created_at, updated_at
+    password_hash = $8,
+    is_active = $9,
+    verification_token = $10,
+    updated_at = $11
+WHERE guid = $12
+RETURNING guid, is_hr, description, email, phone, gender, birthday, avatar, password_hash, is_active, verification_token, created_at, updated_at
 `
 
 type UpdateProfileParams struct {
-	IsHr        sql.NullBool
-	Description string
-	Email       sql.NullString
-	Phone       sql.NullString
-	Gender      string
-	Birthday    string
-	Avatar      sql.NullString
-	UpdatedAt   sql.NullTime
-	Guid        uuid.UUID
+	IsHr              sql.NullBool
+	Description       string
+	Email             string
+	Phone             sql.NullString
+	Gender            string
+	Birthday          string
+	Avatar            sql.NullString
+	PasswordHash      string
+	IsActive          bool
+	VerificationToken sql.NullString
+	UpdatedAt         sql.NullTime
+	Guid              uuid.UUID
 }
 
 func (q *Queries) UpdateProfile(ctx context.Context, db DBTX, arg UpdateProfileParams) (ProfileProfile, error) {
@@ -227,6 +254,9 @@ func (q *Queries) UpdateProfile(ctx context.Context, db DBTX, arg UpdateProfileP
 		arg.Gender,
 		arg.Birthday,
 		arg.Avatar,
+		arg.PasswordHash,
+		arg.IsActive,
+		arg.VerificationToken,
 		arg.UpdatedAt,
 		arg.Guid,
 	)
@@ -240,6 +270,9 @@ func (q *Queries) UpdateProfile(ctx context.Context, db DBTX, arg UpdateProfileP
 		&i.Gender,
 		&i.Birthday,
 		&i.Avatar,
+		&i.PasswordHash,
+		&i.IsActive,
+		&i.VerificationToken,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

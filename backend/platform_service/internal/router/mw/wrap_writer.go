@@ -1,4 +1,4 @@
-package router
+package mw
 
 // Copied from https://github.com/go-chi/chi/blob/v5.0.11/middleware/wrap_writer.go
 
