@@ -14,10 +14,13 @@ INSERT INTO profile.profiles (
     gender,
     birthday,
     avatar,
+    password_hash,
+    is_active,
+    verification_token,
     created_at,
     updated_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
 ) RETURNING *;
 
 -- name: UpdateProfile :one
@@ -30,8 +33,11 @@ SET
     gender = $5,
     birthday = $6,
     avatar = $7,
-    updated_at = $8
-WHERE guid = $9
+    password_hash = $8,
+    is_active = $9,
+    verification_token = $10,
+    updated_at = $11
+WHERE guid = $12
 RETURNING *;
 
 -- name: DeleteProfile :exec

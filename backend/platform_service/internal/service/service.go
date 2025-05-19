@@ -14,10 +14,9 @@ import (
 )
 
 type AuthService interface {
-	Login(ctx context.Context, email string, password string, ip, userAgent string) (*models.AuthTokens, error)
+	Login(ctx context.Context, userGUID string, ip, userAgent string) (*models.AuthTokens, error)
 	Logout(ctx context.Context, token string) error
 	Refresh(ctx context.Context, refreshToken string) (*models.AuthTokens, error)
-	Restore(ctx context.Context, email string) error
 }
 
 type ProfileService interface {
@@ -26,6 +25,9 @@ type ProfileService interface {
 	UpdateProfile(ctx context.Context, userGUID string, profile *models.Profile) error
 	DeleteProfile(ctx context.Context, userGUID string) error
 	SearchProfiles(ctx context.Context, description string) ([]models.ShortProfile, error)
+	Authenticate(ctx context.Context, email string, password string) (string, error)
+	Register(ctx context.Context, email string, password string) (string, error)
+	Restore(ctx context.Context, email string) error
 }
 
 type CompanyService interface {

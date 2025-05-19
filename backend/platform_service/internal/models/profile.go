@@ -6,7 +6,7 @@ type Profile struct {
 	Guid        string    `json:"guid"`
 	IsHr        bool      `json:"is_hr"`
 	Description string    `json:"description"`
-	Phone       string    `json:"phone"`
+	Phone       *string    `json:"phone"`
 	Email       string    `json:"email"`
 	Birthdate   string    `json:"birthdate"`
 	Gender      string    `json:"gender"`

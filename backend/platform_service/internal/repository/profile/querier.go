@@ -14,7 +14,7 @@ import (
 type Querier interface {
 	CreateProfile(ctx context.Context, db DBTX, arg CreateProfileParams) (ProfileProfile, error)
 	DeleteProfile(ctx context.Context, db DBTX, guid uuid.UUID) error
-	GetProfileByEmail(ctx context.Context, db DBTX, email sql.NullString) (ProfileProfile, error)
+	GetProfileByEmail(ctx context.Context, db DBTX, email string) (ProfileProfile, error)
 	GetProfileByGUID(ctx context.Context, db DBTX, guid uuid.UUID) (ProfileProfile, error)
 	GetProfileCompanies(ctx context.Context, db DBTX, userGuid uuid.UUID) ([]CompanyProfileCompany, error)
 	SearchProfiles(ctx context.Context, db DBTX, dollar_1 sql.NullString) ([]ProfileProfile, error)

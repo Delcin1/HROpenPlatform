@@ -1,0 +1,45 @@
+-- +goose Up
+-- +goose StatementBegin
+
+-- Grant usage on schemas
+GRANT USAGE ON SCHEMA profile TO backend;
+GRANT USAGE ON SCHEMA cv TO backend;
+GRANT USAGE ON SCHEMA company TO backend;
+GRANT USAGE ON SCHEMA auth TO backend;
+
+-- Grant privileges on tables
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA profile TO backend;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA cv TO backend;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA company TO backend;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA auth TO backend;
+
+-- Grant privileges on sequences
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA profile TO backend;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA cv TO backend;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA company TO backend;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA auth TO backend;
+
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+
+-- Revoke privileges on sequences
+REVOKE USAGE, SELECT ON ALL SEQUENCES IN SCHEMA profile FROM backend;
+REVOKE USAGE, SELECT ON ALL SEQUENCES IN SCHEMA cv FROM backend;
+REVOKE USAGE, SELECT ON ALL SEQUENCES IN SCHEMA company FROM backend;
+REVOKE USAGE, SELECT ON ALL SEQUENCES IN SCHEMA auth FROM backend;
+
+-- Revoke privileges on tables
+REVOKE SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA profile FROM backend;
+REVOKE SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA cv FROM backend;
+REVOKE SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA company FROM backend;
+REVOKE SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA auth FROM backend;
+
+-- Revoke usage on schemas
+REVOKE USAGE ON SCHEMA profile FROM backend;
+REVOKE USAGE ON SCHEMA cv FROM backend;
+REVOKE USAGE ON SCHEMA company FROM backend;
+REVOKE USAGE ON SCHEMA auth FROM backend;
+
+-- +goose StatementEnd

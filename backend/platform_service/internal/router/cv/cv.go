@@ -1,6 +1,7 @@
 package cv
 
 import (
+	"PlatformService/internal/router/mw"
 	"PlatformService/internal/service"
 	"encoding/json"
 	"net/http"
@@ -12,7 +13,7 @@ type Server struct {
 
 // UploadCV implements ServerInterface.
 func (s *Server) UploadCV(w http.ResponseWriter, r *http.Request) {
-	userGUID := r.Context().Value("user_guid").(string)
+	userGUID := r.Context().Value(mw.UserIDKey).(string)
 	if userGUID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -48,6 +49,7 @@ func (s *Server) UploadCV(w http.ResponseWriter, r *http.Request) {
 
 	// Return response
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]string{
 		"link": cvLink,
 	})

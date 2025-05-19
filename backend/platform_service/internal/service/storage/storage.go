@@ -3,8 +3,10 @@ package storage
 import (
 	"PlatformService/internal/config"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
+	"net/http"
 	"path/filepath"
 
 	"github.com/google/uuid"
@@ -25,6 +27,11 @@ func NewService(cfg *config.Config) (Service, error) {
 	client, err := minio.New(cfg.MinioEndpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.MinioAccessKey, cfg.MinioSecretKey, ""),
 		Secure: cfg.MinioUseSSL,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: cfg.MinioInsecure,
+			},
+		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create minio client: %w", err)

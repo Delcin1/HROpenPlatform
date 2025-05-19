@@ -18,7 +18,15 @@ func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokens, err := s.services.Auth.Login(r.Context(), string(req.Email), req.Password, r.RemoteAddr, r.UserAgent())
+	// Authenticate user
+	userGUID, err := s.services.Profile.Authenticate(r.Context(), string(req.Email), req.Password)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	// Create session
+	tokens, err := s.services.Auth.Login(r.Context(), userGUID, r.RemoteAddr, r.UserAgent())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -32,6 +40,7 @@ func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(resp)
 }
 
@@ -89,8 +98,30 @@ func (s *Server) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Implement registration logic
-	w.WriteHeader(http.StatusNotImplemented)
+	// Register user
+	userGUID, err := s.services.Profile.Register(r.Context(), string(req.Email), req.Password)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Create session
+	tokens, err := s.services.Auth.Login(r.Context(), userGUID, r.RemoteAddr, r.UserAgent())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	resp := ApiLoginResp{
+		AccessToken:  &tokens.AccessToken,
+		RefreshToken: &tokens.RefreshToken,
+		ExpiresIn:    &tokens.ExpiresIn,
+		TokenType:    func() *ApiLoginRespTokenType { t := Bearer; return &t }(),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
 }
 
 // Restore implements ServerInterface.
@@ -101,7 +132,7 @@ func (s *Server) Restore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.services.Auth.Restore(r.Context(), string(req.Email)); err != nil {
+	if err := s.services.Profile.Restore(r.Context(), string(req.Email)); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

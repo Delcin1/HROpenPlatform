@@ -1,4 +1,4 @@
--- +goose Up
+ -- +goose Up
 -- +goose StatementBegin
 
 CREATE SCHEMA profile;
@@ -17,11 +17,14 @@ CREATE TABLE profile.profiles (
     guid UUID PRIMARY KEY,
     is_hr boolean DEFAULT false,
     description character varying NOT NULL,
-    email character varying,
+    email character varying UNIQUE NOT NULL,
     phone character varying,
     gender character varying NOT NULL,
     birthday character varying NOT NULL,
     avatar character varying,
+    password_hash character varying NOT NULL,
+    is_active boolean NOT NULL DEFAULT false,
+    verification_token character varying,
     created_at timestamp without time zone DEFAULT (now() AT TIME ZONE 'utc'::text),
     updated_at timestamp without time zone DEFAULT (now() AT TIME ZONE 'utc'::text)
 );
@@ -68,17 +71,7 @@ CREATE TABLE auth.sessions (
     user_agent character varying NOT NULL,
     active boolean DEFAULT true,
     nonce character varying
-);
-
-CREATE TABLE IF NOT EXISTS auth.users (
-    guid UUID PRIMARY KEY,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_active BOOLEAN NOT NULL DEFAULT false,
-    verification_token VARCHAR(255)
-);
+); 
 
 -- +goose StatementEnd
 

@@ -2,6 +2,7 @@ package company
 
 import (
 	"PlatformService/internal/models"
+	"PlatformService/internal/router/mw"
 	"PlatformService/internal/service"
 	"encoding/json"
 	"net/http"
@@ -13,7 +14,7 @@ type Server struct {
 
 // CreateCompanyProfile implements ServerInterface.
 func (s *Server) CreateCompanyProfile(w http.ResponseWriter, r *http.Request) {
-	userGUID := r.Context().Value("user_guid").(string)
+	userGUID := r.Context().Value(mw.UserIDKey).(string)
 	if userGUID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -32,6 +33,7 @@ func (s *Server) CreateCompanyProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(createdCompany)
 }
 
@@ -44,12 +46,13 @@ func (s *Server) FetchCompany(w http.ResponseWriter, r *http.Request, companyId 
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(company)
 }
 
 // UpdateCompanyProfile implements ServerInterface.
 func (s *Server) UpdateCompanyProfile(w http.ResponseWriter, r *http.Request, companyId string) {
-	userGUID := r.Context().Value("user_guid").(string)
+	userGUID := r.Context().Value(mw.UserIDKey).(string)
 	if userGUID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -68,12 +71,13 @@ func (s *Server) UpdateCompanyProfile(w http.ResponseWriter, r *http.Request, co
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(updatedCompany)
 }
 
 // DeleteCompany implements ServerInterface.
 func (s *Server) DeleteCompany(w http.ResponseWriter, r *http.Request, companyId string) {
-	userGUID := r.Context().Value("user_guid").(string)
+	userGUID := r.Context().Value(mw.UserIDKey).(string)
 	if userGUID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -96,6 +100,7 @@ func (s *Server) SearchCompanyByName(w http.ResponseWriter, r *http.Request, par
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(companies)
 }
 

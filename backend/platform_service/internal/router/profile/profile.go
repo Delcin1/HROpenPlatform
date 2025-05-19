@@ -2,6 +2,7 @@ package profile
 
 import (
 	"PlatformService/internal/models"
+	"PlatformService/internal/router/mw"
 	"PlatformService/internal/service"
 	"encoding/json"
 	"net/http"
@@ -13,7 +14,7 @@ type Server struct {
 
 // GetProfile implements ServerInterface.
 func (s *Server) GetProfile(w http.ResponseWriter, r *http.Request) {
-	userGUID := r.Context().Value("user_guid").(string)
+	userGUID := r.Context().Value(mw.UserIDKey).(string)
 	if userGUID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -26,12 +27,13 @@ func (s *Server) GetProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(profile)
 }
 
 // CreateProfile implements ServerInterface.
 func (s *Server) CreateProfile(w http.ResponseWriter, r *http.Request) {
-	userGUID := r.Context().Value("user_guid").(string)
+	userGUID := r.Context().Value(mw.UserIDKey).(string)
 	if userGUID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -53,7 +55,7 @@ func (s *Server) CreateProfile(w http.ResponseWriter, r *http.Request) {
 
 // UpdateProfile implements ServerInterface.
 func (s *Server) UpdateProfile(w http.ResponseWriter, r *http.Request) {
-	userGUID := r.Context().Value("user_guid").(string)
+	userGUID := r.Context().Value(mw.UserIDKey).(string)
 	if userGUID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -75,7 +77,7 @@ func (s *Server) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 // DeleteProfile implements ServerInterface.
 func (s *Server) DeleteProfile(w http.ResponseWriter, r *http.Request) {
-	userGUID := r.Context().Value("user_guid").(string)
+	userGUID := r.Context().Value(mw.UserIDKey).(string)
 	if userGUID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -91,7 +93,7 @@ func (s *Server) DeleteProfile(w http.ResponseWriter, r *http.Request) {
 
 // DeleteOwnProfile implements ServerInterface.
 func (s *Server) DeleteOwnProfile(w http.ResponseWriter, r *http.Request) {
-	userGUID := r.Context().Value("user_guid").(string)
+	userGUID := r.Context().Value(mw.UserIDKey).(string)
 	if userGUID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -107,7 +109,7 @@ func (s *Server) DeleteOwnProfile(w http.ResponseWriter, r *http.Request) {
 
 // FetchOwnExperience implements ServerInterface.
 func (s *Server) FetchOwnExperience(w http.ResponseWriter, r *http.Request) {
-	userGUID := r.Context().Value("user_guid").(string)
+	userGUID := r.Context().Value(mw.UserIDKey).(string)
 	if userGUID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -120,12 +122,13 @@ func (s *Server) FetchOwnExperience(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(experience)
 }
 
 // FetchOwnProfile implements ServerInterface.
 func (s *Server) FetchOwnProfile(w http.ResponseWriter, r *http.Request) {
-	userGUID := r.Context().Value("user_guid").(string)
+	userGUID := r.Context().Value(mw.UserIDKey).(string)
 	if userGUID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -138,12 +141,13 @@ func (s *Server) FetchOwnProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(profile)
 }
 
 // StoreOwnProfile implements ServerInterface.
 func (s *Server) StoreOwnProfile(w http.ResponseWriter, r *http.Request) {
-	userGUID := r.Context().Value("user_guid").(string)
+	userGUID := r.Context().Value(mw.UserIDKey).(string)
 	if userGUID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -165,7 +169,7 @@ func (s *Server) StoreOwnProfile(w http.ResponseWriter, r *http.Request) {
 
 // StoreOwnExperience implements ServerInterface.
 func (s *Server) StoreOwnExperience(w http.ResponseWriter, r *http.Request) {
-	userGUID := r.Context().Value("user_guid").(string)
+	userGUID := r.Context().Value(mw.UserIDKey).(string)
 	if userGUID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -194,6 +198,7 @@ func (s *Server) SearchProfileByDescription(w http.ResponseWriter, r *http.Reque
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(profiles)
 }
 

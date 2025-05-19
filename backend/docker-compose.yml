@@ -57,18 +57,21 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
+      - "8081:8081"
     environment:
       - DB_HOST=hr-postgres
       - DB_PORT=5432
-      - DB_NAME=postgres
-      - DB_USERNAME=postgres
-      - DB_PASSWORD=postgres
+      - DB_NAME=hrplatform
+      - DB_USERNAME=backend
+      - DB_PASSWORD=your_password
       - DB_SSLMODE=disable
-      - MINIO_ENDPOINT=hr-minio:9001
-      - MINIO_ACCESS_KEY=admin
-      - MINIO_SECRET_KEY=Secure123$
-      - MINIO_USE_SSL=false
-      - MINIO_BUCKET=cv
+      - MINIO_ENDPOINT=hr-minio:9000
+      - MINIO_ACCESS_KEY=dtGvTuyDrxgzEm0nT567
+      - MINIO_SECRET_KEY=Ayr96jHhZN6jOF6eje6MqieI3Nb2lDItT4eFjhN1
+      - MINIO_USE_SSL=true
+      - MINIO_INSECURE=true
+      - MINIO_BUCKET=hr-platform
+      - VICTORIA_METRICS_PUSH_URL=http://hr-victoria-metrics:8428/api/v1/import
     depends_on:
       - hr-postgres
       - hr-minio

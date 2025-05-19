@@ -5,6 +5,7 @@ import (
 	"PlatformService/internal/router/auth"
 	"PlatformService/internal/router/company"
 	"PlatformService/internal/router/cv"
+	"PlatformService/internal/router/mw"
 	"PlatformService/internal/router/profile"
 	"PlatformService/internal/service"
 	"log/slog"
@@ -52,39 +53,44 @@ func (h *Handler) Init() *chi.Mux {
 		WithRequestID:      true,
 	}
 	slogchiMW := slogchi.NewWithConfig(h.log.WithGroup("http"), slogchiConfig)
-	router.Use(InitRequestMW(h.log))
-	router.Use(MetricsMW)
+	router.Use(CORSMiddleware)
+	router.Use(mw.InitRequestMW(h.log))
+	router.Use(mw.MetricsMW)
 	router.Use(middleware.Recoverer)
 	router.Get("/ping", h.serviceHealth)
 
 	auth.HandlerWithOptions(h.servers.auth, auth.ChiServerOptions{
-		BaseURL: "/auth",
+		BaseRouter: router,
 		Middlewares: []auth.MiddlewareFunc{
 			slogchiMW,
+			CORSMiddleware,
 		},
 	})
 
 	profile.HandlerWithOptions(h.servers.profile, profile.ChiServerOptions{
-		BaseURL: "/profile",
+		BaseRouter: router,
 		Middlewares: []profile.MiddlewareFunc{
 			slogchiMW,
-			AuthMiddleware(h.cfg),
+			CORSMiddleware,
+			mw.AuthMiddleware(h.cfg),
 		},
 	})
 
 	company.HandlerWithOptions(h.servers.company, company.ChiServerOptions{
-		BaseURL: "/company",
+		BaseRouter: router,
 		Middlewares: []company.MiddlewareFunc{
 			slogchiMW,
-			AuthMiddleware(h.cfg),
+			CORSMiddleware,
+			mw.AuthMiddleware(h.cfg),
 		},
 	})
 
 	cv.HandlerWithOptions(h.servers.cv, cv.ChiServerOptions{
-		BaseURL: "/cv",
+		BaseRouter: router,
 		Middlewares: []cv.MiddlewareFunc{
 			slogchiMW,
-			AuthMiddleware(h.cfg),
+			CORSMiddleware,
+			mw.AuthMiddleware(h.cfg),
 		},
 	})
 

@@ -5,7 +5,6 @@ import (
 	"PlatformService/internal/models"
 	"PlatformService/internal/repository"
 	repository_auth "PlatformService/internal/repository/auth"
-	"PlatformService/internal/repository/user"
 	"context"
 	"database/sql"
 	"errors"
@@ -13,14 +12,12 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type Service interface {
-	Login(ctx context.Context, email string, password string, ip, userAgent string) (*models.AuthTokens, error)
+	Login(ctx context.Context, userGUID string, ip, userAgent string) (*models.AuthTokens, error)
 	Logout(ctx context.Context, token string) error
 	Refresh(ctx context.Context, refreshToken string) (*models.AuthTokens, error)
-	Restore(ctx context.Context, email string) error
 }
 
 type service struct {
@@ -28,31 +25,7 @@ type service struct {
 	repo *repository.Repositories
 }
 
-func (s *service) authenticateUser(email, password string) (string, error) {
-	var userGUID string
-	err := s.repo.TxManager.WithTransaction(context.Background(), func(ctx context.Context, tx pgx.Tx) error {
-		usr, err := s.repo.User.GetUserByEmail(ctx, tx, email)
-		if err != nil {
-			return err
-		}
-		if !usr.IsActive {
-			return errors.New("user is not active")
-		}
-		if err := bcrypt.CompareHashAndPassword([]byte(usr.PasswordHash), []byte(password)); err != nil {
-			return errors.New("invalid credentials")
-		}
-		userGUID = usr.Guid.String()
-		return nil
-	})
-	return userGUID, err
-}
-
-func (s *service) Login(ctx context.Context, email string, password string, ip, userAgent string) (*models.AuthTokens, error) {
-	userGUID, err := s.authenticateUser(email, password)
-	if err != nil {
-		return nil, err
-	}
-
+func (s *service) Login(ctx context.Context, userGUID string, ip, userAgent string) (*models.AuthTokens, error) {
 	accessToken, err := generateToken(userGUID, s.cfg.AccessTokenSecret, s.cfg.AccessTokenTTL)
 	if err != nil {
 		return nil, err
@@ -153,35 +126,6 @@ func (s *service) Refresh(ctx context.Context, refreshToken string) (*models.Aut
 		RefreshToken: refreshToken,
 		ExpiresIn:    s.cfg.AccessTokenTTL,
 	}, nil
-}
-
-func (s *service) Restore(ctx context.Context, email string) error {
-	return s.repo.TxManager.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		usr, err := s.repo.User.GetUserByEmail(ctx, tx, email)
-		if err != nil {
-			return err
-		}
-
-		// Generate verification token
-		verificationToken := uuid.New().String()
-		now := time.Now().UTC()
-
-		// Update user with new verification token
-		err = s.repo.User.UpdateVerificationToken(ctx, tx, user.UpdateVerificationTokenParams{
-			VerificationToken: sql.NullString{String: verificationToken, Valid: true},
-			Updated:           now,
-			Guid:              usr.Guid,
-		})
-		if err != nil {
-			return err
-		}
-
-		// TODO: Send email with password reset link
-		// The link should contain the verification token and user's email
-		// Example: https://your-domain.com/reset-password?token={verificationToken}&email={email}
-
-		return nil
-	})
 }
 
 func NewService(cfg *config.Config, repo *repository.Repositories) Service {
