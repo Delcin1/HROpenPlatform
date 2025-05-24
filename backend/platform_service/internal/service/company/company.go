@@ -4,6 +4,7 @@ import (
 	"PlatformService/internal/models"
 	"PlatformService/internal/repository"
 	repository_company "PlatformService/internal/repository/company"
+	"PlatformService/internal/utils"
 	"context"
 	"database/sql"
 	"time"
@@ -112,13 +113,13 @@ func (s *service) CreateCompany(ctx context.Context, userGUID string, company *m
 		result, err := s.repo.Company.CreateCompany(ctx, tx, repository_company.CreateCompanyParams{
 			Guid:          companyGUID,
 			Name:          company.Name,
-			Description:   sql.NullString{String: *company.Description, Valid: company.Description != nil},
-			Email:         sql.NullString{String: *company.Email, Valid: company.Email != nil},
-			Phone:         sql.NullString{String: *company.Phone, Valid: company.Phone != nil},
-			Website:       sql.NullString{String: *company.Website, Valid: company.Website != nil},
-			Address:       sql.NullString{String: *company.Address, Valid: company.Address != nil},
-			Avatar:        sql.NullString{String: *company.Avatar, Valid: company.Avatar != nil},
-			ShortLinkName: sql.NullString{String: *company.ShortLinkName, Valid: company.ShortLinkName != nil},
+			Description:   utils.StringPtrToNullString(company.Description),
+			Email:         utils.StringPtrToNullString(company.Email),
+			Phone:         utils.StringPtrToNullString(company.Phone),
+			Website:       utils.StringPtrToNullString(company.Website),
+			Address:       utils.StringPtrToNullString(company.Address),
+			Avatar:        utils.StringPtrToNullString(company.Avatar),
+			ShortLinkName: utils.StringPtrToNullString(company.ShortLinkName),
 		})
 		if err != nil {
 			return err
@@ -196,13 +197,13 @@ func (s *service) UpdateCompany(ctx context.Context, userGUID string, companyId 
 	err = s.repo.TxManager.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		result, err := s.repo.Company.UpdateCompany(ctx, tx, repository_company.UpdateCompanyParams{
 			Name:          company.Name,
-			Description:   sql.NullString{String: *company.Description, Valid: company.Description != nil},
-			Email:         sql.NullString{String: *company.Email, Valid: company.Email != nil},
-			Phone:         sql.NullString{String: *company.Phone, Valid: company.Phone != nil},
-			Website:       sql.NullString{String: *company.Website, Valid: company.Website != nil},
-			Address:       sql.NullString{String: *company.Address, Valid: company.Address != nil},
-			Avatar:        sql.NullString{String: *company.Avatar, Valid: company.Avatar != nil},
-			ShortLinkName: sql.NullString{String: *company.ShortLinkName, Valid: company.ShortLinkName != nil},
+			Description:   utils.StringPtrToNullString(company.Description),
+			Email:         utils.StringPtrToNullString(company.Email),
+			Phone:         utils.StringPtrToNullString(company.Phone),
+			Website:       utils.StringPtrToNullString(company.Website),
+			Address:       utils.StringPtrToNullString(company.Address),
+			Avatar:        utils.StringPtrToNullString(company.Avatar),
+			ShortLinkName: utils.StringPtrToNullString(company.ShortLinkName),
 			Guid:          companyGUID,
 		})
 		if err != nil {

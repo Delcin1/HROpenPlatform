@@ -120,7 +120,7 @@ type ShortCompany struct {
 // SearchCompanyByNameParams defines parameters for SearchCompanyByName.
 type SearchCompanyByNameParams struct {
 	// Name Часть названия компании
-	Name string `form:"name" json:"name"`
+	Name *string `form:"name,omitempty" json:"name,omitempty"`
 }
 
 // CreateCompanyProfileJSONRequestBody defines body for CreateCompanyProfile for application/json ContentType.
@@ -225,16 +225,9 @@ func (siw *ServerInterfaceWrapper) SearchCompanyByName(w http.ResponseWriter, r 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params SearchCompanyByNameParams
 
-	// ------------- Required query parameter "name" -------------
+	// ------------- Optional query parameter "name" -------------
 
-	if paramValue := r.URL.Query().Get("name"); paramValue != "" {
-
-	} else {
-		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "name"})
-		return
-	}
-
-	err = runtime.BindQueryParameter("form", true, true, "name", r.URL.Query(), &params.Name)
+	err = runtime.BindQueryParameter("form", true, false, "name", r.URL.Query(), &params.Name)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "name", Err: err})
 		return

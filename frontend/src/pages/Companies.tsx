@@ -25,13 +25,24 @@ export const Companies = () => {
 
   const { data, isLoading, error } = useQuery<ApiSearchCompanyResp>({
     queryKey: ['companies', searchQuery],
-    queryFn: () => CompanyService.searchCompanyByName(searchQuery),
-    enabled: searchQuery.length > 0,
+    queryFn: async () => {
+      console.log('Searching with query:', searchQuery);
+      const response = await CompanyService.searchCompanyByName(searchQuery || '');
+      console.log('Raw API Response:', response);
+      // Адаптируем ответ под ожидаемый формат
+      return { companies: Array.isArray(response) ? response : [] };
+    },
   });
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
   };
+
+  console.log('Current data:', data);
+  console.log('Data type:', typeof data);
+  console.log('Companies array:', data?.companies);
+  console.log('Is loading:', isLoading);
+  console.log('Error:', error);
 
   return (
     <Container maxWidth="lg">
@@ -66,7 +77,6 @@ export const Companies = () => {
                   type="submit"
                   variant="contained"
                   startIcon={<SearchIcon />}
-                  disabled={!searchQuery}
                 >
                   Поиск
                 </Button>
@@ -87,36 +97,38 @@ export const Companies = () => {
           </Alert>
         )}
 
-        {data?.companies.length === 0 && searchQuery && (
+        {!isLoading && (!data?.companies || data.companies.length === 0) && (
           <Alert severity="info" sx={{ mt: 2 }}>
             Компании не найдены
           </Alert>
         )}
 
-        <Grid container spacing={3}>
-          {data?.companies.map((company) => (
-            <Grid item xs={12} sm={6} md={4} key={company.guid}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" component="h2" gutterBottom>
-                    {company.name}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {company.short_link_name}
-                  </Typography>
-                </CardContent>
-                <CardActions>
-                  <Button
-                    size="small"
-                    onClick={() => navigate(`/companies/${company.guid}`)}
-                  >
-                    Подробнее
-                  </Button>
-                </CardActions>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
+        {!isLoading && data?.companies && data.companies.length > 0 && (
+          <Grid container spacing={3}>
+            {data.companies.map((company) => (
+              <Grid item xs={12} sm={6} md={4} key={company.guid}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" component="h2" gutterBottom>
+                      {company.name}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {company.short_link_name}
+                    </Typography>
+                  </CardContent>
+                  <CardActions>
+                    <Button
+                      size="small"
+                      onClick={() => navigate(`/companies/${company.guid}`)}
+                    >
+                      Подробнее
+                    </Button>
+                  </CardActions>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        )}
       </Box>
     </Container>
   );

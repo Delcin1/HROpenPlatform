@@ -93,7 +93,7 @@ func (s *Server) DeleteCompany(w http.ResponseWriter, r *http.Request, companyId
 
 // SearchCompanyByName implements ServerInterface.
 func (s *Server) SearchCompanyByName(w http.ResponseWriter, r *http.Request, params SearchCompanyByNameParams) {
-	companies, err := s.services.Company.SearchCompanies(r.Context(), params.Name)
+	companies, err := s.services.Company.SearchCompanies(r.Context(), *params.Name)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
