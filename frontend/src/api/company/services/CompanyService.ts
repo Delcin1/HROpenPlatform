@@ -1,4 +1,4 @@
-/* generated using openapi-typescript-codegen -- do not edit */
+/* generated using openapi-typescript-codegen -- do no edit */
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
@@ -110,7 +110,7 @@ export class CompanyService {
      * @throws ApiError
      */
     public static searchCompanyByName(
-        name: string,
+        name?: string,
     ): CancelablePromise<ApiSearchCompanyResp> {
         return __request(OpenAPI, {
             method: 'GET',

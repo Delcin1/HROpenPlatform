@@ -1,12 +1,30 @@
 import axios from 'axios';
+import { OpenAPI as OpenAPIProfile } from './profile/core/OpenAPI';
+import { OpenAPI as OpenAPICompany } from './company/core/OpenAPI';
+import { OpenAPI as OpenAPICV } from './cv/core/OpenAPI';
+import { OpenAPI as OpenAPIAuth } from './auth/core/OpenAPI';
 
-const API_URL = 'http://localhost:8080/api/v1';
+const API_URL = 'http://localhost:8080';
+
+// Configure OpenAPI instances
+const configureOpenAPI = (openAPI: typeof OpenAPIProfile) => {
+  openAPI.BASE = API_URL;
+  openAPI.TOKEN = async () => localStorage.getItem('access_token') || '';
+  openAPI.WITH_CREDENTIALS = true;
+  openAPI.CREDENTIALS = 'include';
+};
+
+configureOpenAPI(OpenAPIProfile);
+configureOpenAPI(OpenAPICompany);
+configureOpenAPI(OpenAPICV);
+configureOpenAPI(OpenAPIAuth);
 
 export const apiClient = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
 
 // Add request interceptor for authentication
@@ -57,8 +75,8 @@ apiClient.interceptors.response.use(
     // Only refresh token if it's not a login or refresh request
     if (error.response.status === 401 && 
         !originalRequest._retry && 
-        !originalRequest.url?.includes('/auth/login') && 
-        !originalRequest.url?.includes('/auth/refresh')) {
+        !originalRequest.url?.includes('/api/v1/auth/login') && 
+        !originalRequest.url?.includes('/api/v1/auth/refresh')) {
       
       originalRequest._retry = true;
 
@@ -69,7 +87,7 @@ apiClient.interceptors.response.use(
         }
 
         // Create a new axios instance for refresh to avoid interceptors
-        const refreshResponse = await axios.post(`${API_URL}/auth/refresh`, null, {
+        const refreshResponse = await axios.post(`${API_URL}/api/v1/auth/refresh`, null, {
           headers: {
             Authorization: `${refreshToken}`,
           },

@@ -41,14 +41,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       try {
         // Try to get profile to validate token
-        await apiClient.get('/profile');
+        await apiClient.get('/api/v1/profile');
         setIsAuthenticated(true);
       } catch (error) {
         // If token is invalid, try to refresh
         const refreshToken = localStorage.getItem('refresh_token');
         if (refreshToken) {
           try {
-            const response = await apiClient.post('/auth/refresh', null, {
+            const response = await apiClient.post('/api/v1/auth/refresh', null, {
               headers: {
                 Authorization: `Bearer ${refreshToken}`,
               },
@@ -78,7 +78,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await apiClient.post('/auth/login', {
+      const response = await apiClient.post('/api/v1/auth/login', {
         email,
         password,
       });
@@ -96,7 +96,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const logout = async () => {
     try {
-      await apiClient.post('/auth/logout');
+      await apiClient.post('/api/v1/auth/logout');
     } catch (error) {
       console.error('Logout failed:', error);
     } finally {
@@ -109,7 +109,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const register = async (email: string, password: string, confirmPassword: string) => {
     try {
-      const response = await apiClient.post('/auth/register', {
+      const response = await apiClient.post('/api/v1/auth/register', {
         email,
         password,
         confirm_password: confirmPassword,
@@ -128,7 +128,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const restore = async (email: string) => {
     try {
-      await apiClient.post('/auth/restore', { email });
+      await apiClient.post('/api/v1/auth/restore', { email });
     } catch (error) {
       console.error('Password restoration failed:', error);
       throw error;
