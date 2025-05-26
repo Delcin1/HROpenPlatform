@@ -42,6 +42,7 @@ type CompanyService interface {
 
 type CVService interface {
 	SaveCVLink(ctx context.Context, userGUID string, link string) error
+	GetCVLink(ctx context.Context, userGUID string) (string, error)
 }
 
 type Services struct {

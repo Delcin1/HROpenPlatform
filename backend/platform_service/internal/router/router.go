@@ -34,10 +34,10 @@ func NewHandler(cfg *config.Config, log *slog.Logger, services *service.Services
 		cfg: cfg,
 		log: log,
 		servers: &servers{
-			auth:    auth.NewServer(services),
-			profile: profile.NewServer(services),
-			company: company.NewServer(services),
-			cv:      cv.NewServer(services),
+			auth:    auth.NewServer(services, log),
+			profile: profile.NewServer(services, log),
+			company: company.NewServer(services, log),
+			cv:      cv.NewServer(services, log),
 		},
 	}
 }
@@ -72,7 +72,7 @@ func (h *Handler) Init() *chi.Mux {
 		Middlewares: []profile.MiddlewareFunc{
 			slogchiMW,
 			CORSMiddleware,
-			mw.AuthMiddleware(h.cfg),
+			mw.AuthMiddleware(h.cfg, h.log),
 		},
 	})
 
@@ -81,7 +81,7 @@ func (h *Handler) Init() *chi.Mux {
 		Middlewares: []company.MiddlewareFunc{
 			slogchiMW,
 			CORSMiddleware,
-			mw.AuthMiddleware(h.cfg),
+			mw.AuthMiddleware(h.cfg, h.log),
 		},
 	})
 
@@ -90,7 +90,7 @@ func (h *Handler) Init() *chi.Mux {
 		Middlewares: []cv.MiddlewareFunc{
 			slogchiMW,
 			CORSMiddleware,
-			mw.AuthMiddleware(h.cfg),
+			mw.AuthMiddleware(h.cfg, h.log),
 		},
 	})
 

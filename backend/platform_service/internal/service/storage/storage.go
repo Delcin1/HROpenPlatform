@@ -56,6 +56,10 @@ func NewService(cfg *config.Config) (Service, error) {
 	}, nil
 }
 
+func (s *service) GetFile(ctx context.Context, filename string) (io.ReadCloser, error) {
+	return s.client.GetObject(ctx, s.bucket, filename, minio.GetObjectOptions{})
+}
+
 func (s *service) UploadFile(ctx context.Context, file io.Reader, filename string) (string, error) {
 	// Generate unique filename
 	ext := filepath.Ext(filename)
@@ -70,5 +74,5 @@ func (s *service) UploadFile(ctx context.Context, file io.Reader, filename strin
 	}
 
 	// Return public URL
-	return fmt.Sprintf("/%s/%s", s.bucket, objectName), nil
+	return objectName, nil
 }

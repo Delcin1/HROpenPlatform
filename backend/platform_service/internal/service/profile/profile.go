@@ -67,6 +67,24 @@ func (s *service) GetProfile(ctx context.Context, userGUID string) (*models.Prof
 	}, nil
 }
 
+func (s *service) GetProfileData(ctx context.Context, userGUID string) (*repository_profile.ProfileProfile, error) {
+	userGUIDUUID, err := uuid.Parse(userGUID)
+	if err != nil {
+		return nil, err
+	}
+
+	var profile repository_profile.ProfileProfile
+	err = s.repo.TxManager.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		var err error
+		profile, err = s.repo.Profile.GetProfileByGUID(ctx, tx, userGUIDUUID)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &profile, nil
+}
+
 func (s *service) CreateProfile(ctx context.Context, userGUID string, profile *models.Profile) error {
 	userGUIDUUID, err := uuid.Parse(userGUID)
 	if err != nil {
@@ -103,24 +121,40 @@ func (s *service) UpdateProfile(ctx context.Context, userGUID string, profile *m
 		return err
 	}
 
-	now := time.Now().UTC()
+	profileData, err := s.GetProfileData(ctx, userGUID)
+	if err != nil {
+		return err
+	}
+	profileData.IsHr = sql.NullBool{Bool: profile.IsHr, Valid: true}
+	profileData.Description = profile.Description
+	profileData.Email = profile.Email
+	profileData.Phone = sql.NullString{String: *profile.Phone, Valid: profile.Phone != nil}
+	profileData.Gender = profile.Gender
+	profileData.Birthday = profile.Birthdate
+	profileData.Avatar = sql.NullString{String: *profile.Avatar, Valid: profile.Avatar != nil}
+	profileData.UpdatedAt = sql.NullTime{Time: time.Now().UTC(), Valid: true}
+	profileData.CreatedAt = sql.NullTime{Time: profileData.CreatedAt.Time, Valid: true}
+
 	return s.repo.TxManager.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		_, err := s.repo.Profile.UpdateProfile(ctx, tx, repository_profile.UpdateProfileParams{
 			Guid:        userGUIDUUID,
-			IsHr:        sql.NullBool{Bool: profile.IsHr, Valid: true},
-			Description: profile.Description,
-			Email:       profile.Email,
+			IsHr:        profileData.IsHr,
+			Description: profileData.Description,
+			Email:       profileData.Email,
 			Phone: sql.NullString{String: func() string {
-				if profile.Phone != nil {
-					return *profile.Phone
+				if profileData.Phone.Valid {
+					return profileData.Phone.String
 				} else {
 					return ""
 				}
-			}(), Valid: profile.Phone != nil},
-			Gender:    profile.Gender,
-			Birthday:  profile.Birthdate,
-			Avatar:    sql.NullString{String: *profile.Avatar, Valid: profile.Avatar != nil},
-			UpdatedAt: sql.NullTime{Time: now, Valid: true},
+			}(), Valid: profileData.Phone.Valid},
+			Gender:            profileData.Gender,
+			Birthday:          profileData.Birthday,
+			Avatar:            profileData.Avatar,
+			UpdatedAt:         profileData.UpdatedAt,
+			PasswordHash:      profileData.PasswordHash,
+			IsActive:          profileData.IsActive,
+			VerificationToken: profileData.VerificationToken,
 		})
 		return err
 	})
@@ -225,32 +259,8 @@ func (s *service) Register(ctx context.Context, email string, password string) (
 }
 
 func (s *service) Restore(ctx context.Context, email string) error {
-	return s.repo.TxManager.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		profile, err := s.repo.Profile.GetProfileByEmail(ctx, tx, email)
-		if err != nil {
-			return err
-		}
-
-		// Generate verification token
-		verificationToken := uuid.New().String()
-		now := time.Now().UTC()
-
-		// Update profile with new verification token
-		_, err = s.repo.Profile.UpdateProfile(ctx, tx, repository_profile.UpdateProfileParams{
-			Guid:              profile.Guid,
-			VerificationToken: sql.NullString{String: verificationToken, Valid: true},
-			UpdatedAt:         sql.NullTime{Time: now, Valid: true},
-		})
-		if err != nil {
-			return err
-		}
-
-		// TODO: Send email with password reset link
-		// The link should contain the verification token and user's email
-		// Example: https://your-domain.com/reset-password?token={verificationToken}&email={email}
-
-		return nil
-	})
+	// TODO: Implement restore
+	return nil
 }
 
 func NewService(repo *repository.Repositories) Service {

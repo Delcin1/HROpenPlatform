@@ -110,22 +110,25 @@ func InitRequestMW(log *slog.Logger) func(next http.Handler) http.Handler {
 	}
 }
 
-func AuthMiddleware(cfg *config.Config) func(next http.Handler) http.Handler {
+func AuthMiddleware(cfg *config.Config, log *slog.Logger) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
 			token, err := FindToken(r)
 			if err != nil {
+				log.ErrorContext(ctx, "authMiddleware.FindToken failed to find token", "error", err)
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
 				return
 			}
 
 			claims, err := auth.ValidateToken(token, cfg.AccessTokenSecret)
 			if err != nil {
+				log.ErrorContext(ctx, "authMiddleware.ValidateToken failed to validate token", "error", err)
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
 				return
 			}
 
-			ctx := context.WithValue(r.Context(), UserIDKey, claims.UserGUID)
+			ctx = context.WithValue(ctx, UserIDKey, claims.UserGUID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
