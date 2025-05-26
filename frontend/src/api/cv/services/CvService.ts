@@ -30,4 +30,27 @@ export class CvService {
             },
         });
     }
+    /**
+     * Получить резюме по имени файла
+     * @param filename Имя файла резюме
+     * @returns binary successful operation
+     * @throws ApiError
+     */
+    public static getCvByFilename(
+        filename: string,
+    ): CancelablePromise<Blob> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1/cv/{filename}',
+            path: {
+                'filename': filename,
+            },
+            errors: {
+                400: `Bad request`,
+                401: `Unauthorized`,
+                404: `CV file not found`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
 }

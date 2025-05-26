@@ -15,6 +15,7 @@ type Config struct {
 	RefreshTokenTTL    int    `mapstructure:"REFRESH_TOKEN_TTL" required:"true" default:"86400"`
 
 	ServerAddress     string `mapstructure:"SERVER_ADDRESS" required:"true" default:"http://localhost:8080"`
+	ServerFullAddress string `mapstructure:"SERVER_FULL_ADDRESS" required:"true" default:"http://localhost:8080"`
 	MonitoringAddress string `mapstructure:"MONITORING_ADDRESS" required:"true" default:"http://localhost:8081"`
 
 	HTTPReadHeaderTimeout int `mapstructure:"HTTP_READ_HEADER_TIMEOUT" required:"true" default:"10"`

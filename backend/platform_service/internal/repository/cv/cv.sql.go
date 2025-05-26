@@ -67,7 +67,7 @@ func (q *Queries) GetCVByGUID(ctx context.Context, db DBTX, guid uuid.UUID) (CvC
 }
 
 const getCVByUserGUID = `-- name: GetCVByUserGUID :one
-SELECT guid, user_guid, link, created_at, updated_at FROM cv.cv WHERE user_guid = $1
+SELECT guid, user_guid, link, created_at, updated_at FROM cv.cv WHERE user_guid = $1 ORDER BY created_at DESC LIMIT 1
 `
 
 func (q *Queries) GetCVByUserGUID(ctx context.Context, db DBTX, userGuid string) (CvCv, error) {

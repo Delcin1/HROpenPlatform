@@ -11,6 +11,7 @@ import (
 	"PlatformService/internal/service/storage"
 	"context"
 	"fmt"
+	"io"
 )
 
 type AuthService interface {
@@ -45,12 +46,17 @@ type CVService interface {
 	GetCVLink(ctx context.Context, userGUID string) (string, error)
 }
 
+type StorageService interface {
+	UploadFile(ctx context.Context, file io.Reader, filename string) (string, error)
+	GetFile(ctx context.Context, filename string) (io.ReadCloser, error)
+}
+
 type Services struct {
 	Auth    AuthService
 	Profile ProfileService
 	Company CompanyService
 	CV      CVService
-	Storage storage.Service
+	Storage StorageService
 }
 
 func NewServices(cfg *config.Config, repo *repository.Repositories) (*Services, error) {

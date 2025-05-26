@@ -4,5 +4,8 @@ backend-codegen:
 	oapi-codegen --config=./backend/platform_service/oapi-codegen-configs/company/server_cfg.yaml -o ./backend/platform_service/internal/router/company/company.gen.go ./api/company.yaml
 	oapi-codegen --config=./backend/platform_service/oapi-codegen-configs/profile/server_cfg.yaml -o ./backend/platform_service/internal/router/profile/profile.gen.go ./api/profile.yaml
 
+frontend-codegen:
+	cd ./frontend && npm run generate-api
+
 sqlcgen:
 	cd ./backend/platform_service/internal/repository && sqlc generate

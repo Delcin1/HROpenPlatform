@@ -2,7 +2,7 @@
 SELECT * FROM cv.cv WHERE guid = $1;
 
 -- name: GetCVByUserGUID :one
-SELECT * FROM cv.cv WHERE user_guid = $1;
+SELECT * FROM cv.cv WHERE user_guid = $1 ORDER BY created_at DESC LIMIT 1;
 
 -- name: CreateCV :one
 INSERT INTO cv.cv (

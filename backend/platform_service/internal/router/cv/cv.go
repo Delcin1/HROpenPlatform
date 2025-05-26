@@ -1,9 +1,12 @@
 package cv
 
 import (
+	"PlatformService/internal/config"
 	"PlatformService/internal/router/mw"
 	"PlatformService/internal/service"
 	"encoding/json"
+	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 )
@@ -11,6 +14,30 @@ import (
 type Server struct {
 	services *service.Services
 	log      *slog.Logger
+	cfg      *config.Config
+}
+
+// GetCVByFilename implements ServerInterface.
+func (s *Server) GetCVByFilename(w http.ResponseWriter, r *http.Request, filename string) {
+	file, err := s.services.Storage.GetFile(r.Context(), filename)
+	if err != nil {
+		s.log.ErrorContext(r.Context(), "cvServer.GetCVByFilename failed to get file", "error", err)
+		http.Error(w, "Failed to get file", http.StatusInternalServerError)
+		return
+	}
+	defer file.Close()
+
+	// Copy file to response
+	_, err = io.Copy(w, file)
+	if err != nil {
+		s.log.ErrorContext(r.Context(), "cvServer.GetCVByFilename failed to copy file", "error", err)
+		http.Error(w, "Failed to copy file", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	w.WriteHeader(http.StatusOK)
 }
 
 // UploadCV implements ServerInterface.
@@ -40,7 +67,7 @@ func (s *Server) UploadCV(w http.ResponseWriter, r *http.Request) {
 	defer file.Close()
 
 	// Upload file to MinIO
-	cvLink, err := s.services.Storage.UploadFile(r.Context(), file, handler.Filename)
+	newFilename, err := s.services.Storage.UploadFile(r.Context(), file, handler.Filename)
 	if err != nil {
 		s.log.ErrorContext(ctx, "cvServer.UploadCV failed to upload file", "error", err)
 		http.Error(w, "Failed to upload file", http.StatusInternalServerError)
@@ -48,6 +75,7 @@ func (s *Server) UploadCV(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Save CV link to database
+	cvLink := fmt.Sprintf("%s/api/v1/cv/%s", s.cfg.ServerFullAddress, newFilename)
 	if err := s.services.CV.SaveCVLink(r.Context(), userGUID, cvLink); err != nil {
 		s.log.ErrorContext(ctx, "cvServer.UploadCV failed to save CV link", "error", err)
 		http.Error(w, "Failed to save CV link", http.StatusInternalServerError)
@@ -62,9 +90,10 @@ func (s *Server) UploadCV(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func NewServer(services *service.Services, log *slog.Logger) ServerInterface {
+func NewServer(services *service.Services, log *slog.Logger, cfg *config.Config) ServerInterface {
 	return &Server{
 		services: services,
 		log:      log,
+		cfg:      cfg,
 	}
 }

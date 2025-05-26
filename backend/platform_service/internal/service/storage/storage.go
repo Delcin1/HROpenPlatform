@@ -16,6 +16,7 @@ import (
 
 type Service interface {
 	UploadFile(ctx context.Context, file io.Reader, filename string) (string, error)
+	GetFile(ctx context.Context, filename string) (io.ReadCloser, error)
 }
 
 type service struct {

@@ -37,6 +37,37 @@ paths:
           description: Unauthorized
         '500':
           description: Internal Server Error
+  /api/v1/cv/{filename}:
+    get:
+      tags:
+        - cv
+      summary: Получить резюме по имени файла
+      operationId: getCVByFilename
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: filename
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Имя файла резюме
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '404':
+          description: CV file not found
+        '500':
+          description: Internal Server Error
 
 components:
   schemas:

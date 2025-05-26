@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/oapi-codegen/runtime"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
@@ -35,6 +36,9 @@ type ServerInterface interface {
 	// Загрузить резюме
 	// (POST /api/v1/cv/upload)
 	UploadCV(w http.ResponseWriter, r *http.Request)
+	// Получить резюме по имени файла
+	// (GET /api/v1/cv/{filename})
+	GetCVByFilename(w http.ResponseWriter, r *http.Request, filename string)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -44,6 +48,12 @@ type Unimplemented struct{}
 // Загрузить резюме
 // (POST /api/v1/cv/upload)
 func (_ Unimplemented) UploadCV(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Получить резюме по имени файла
+// (GET /api/v1/cv/{filename})
+func (_ Unimplemented) GetCVByFilename(w http.ResponseWriter, r *http.Request, filename string) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -67,6 +77,37 @@ func (siw *ServerInterfaceWrapper) UploadCV(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UploadCV(w, r)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetCVByFilename operation middleware
+func (siw *ServerInterfaceWrapper) GetCVByFilename(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "filename" -------------
+	var filename string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "filename", chi.URLParam(r, "filename"), &filename, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "filename", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetCVByFilename(w, r, filename)
 	}))
 
 	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
@@ -191,6 +232,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/api/v1/cv/upload", wrapper.UploadCV)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/v1/cv/{filename}", wrapper.GetCVByFilename)
 	})
 
 	return r
