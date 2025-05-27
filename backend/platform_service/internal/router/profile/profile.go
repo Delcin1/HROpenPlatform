@@ -254,6 +254,24 @@ func (s *Server) SearchProfileByDescription(w http.ResponseWriter, r *http.Reque
 	json.NewEncoder(w).Encode(profiles)
 }
 
+// DeleteOwnExperience implements ServerInterface.
+func (s *Server) DeleteOwnExperience(w http.ResponseWriter, r *http.Request, params DeleteOwnExperienceParams) {
+	ctx := r.Context()
+	userGUID := ctx.Value(mw.UserIDKey).(string)
+	if userGUID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if err := s.services.Company.DeleteExperience(ctx, userGUID, params.Guid); err != nil {
+		s.log.ErrorContext(ctx, "profileServer.DeleteOwnExperience failed to delete experience", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func NewServer(services *service.Services, log *slog.Logger) ServerInterface {
 	return &Server{services: services, log: log}
 }

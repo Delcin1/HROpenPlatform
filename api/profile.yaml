@@ -141,6 +141,26 @@ paths:
           description: Unauthorized
         '500':
           description: Internal Server Error
+    delete:
+      tags:
+        - profile
+      summary: Удалить опыт работы
+      operationId: deleteOwnExperience
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: guid
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: successful operation
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal Server Error
 
 components:
   schemas:

@@ -15,6 +15,7 @@ type Querier interface {
 	CreateCompany(ctx context.Context, db DBTX, arg CreateCompanyParams) (CompanyCompany, error)
 	CreateProfileCompany(ctx context.Context, db DBTX, arg CreateProfileCompanyParams) (CompanyProfileCompany, error)
 	DeleteCompany(ctx context.Context, db DBTX, guid uuid.UUID) error
+	DeleteExperience(ctx context.Context, db DBTX, arg DeleteExperienceParams) error
 	DeleteProfileCompany(ctx context.Context, db DBTX, arg DeleteProfileCompanyParams) error
 	GetCompanyByGUID(ctx context.Context, db DBTX, guid uuid.UUID) (CompanyCompany, error)
 	GetCompanyByShortLink(ctx context.Context, db DBTX, shortLinkName sql.NullString) (CompanyCompany, error)

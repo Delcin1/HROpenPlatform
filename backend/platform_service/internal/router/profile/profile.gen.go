@@ -121,6 +121,11 @@ type ShortProfile struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// DeleteOwnExperienceParams defines parameters for DeleteOwnExperience.
+type DeleteOwnExperienceParams struct {
+	Guid string `form:"guid" json:"guid"`
+}
+
 // SearchProfileByDescriptionParams defines parameters for SearchProfileByDescription.
 type SearchProfileByDescriptionParams struct {
 	// Description Часть ФИО
@@ -144,6 +149,9 @@ type ServerInterface interface {
 	// Изменить данных профиля
 	// (PUT /api/v1/profile)
 	StoreOwnProfile(w http.ResponseWriter, r *http.Request)
+	// Удалить опыт работы
+	// (DELETE /api/v1/profile/experience)
+	DeleteOwnExperience(w http.ResponseWriter, r *http.Request, params DeleteOwnExperienceParams)
 	// Получить данные опыта работы
 	// (GET /api/v1/profile/experience)
 	FetchOwnExperience(w http.ResponseWriter, r *http.Request)
@@ -174,6 +182,12 @@ func (_ Unimplemented) FetchOwnProfile(w http.ResponseWriter, r *http.Request) {
 // Изменить данных профиля
 // (PUT /api/v1/profile)
 func (_ Unimplemented) StoreOwnProfile(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Удалить опыт работы
+// (DELETE /api/v1/profile/experience)
+func (_ Unimplemented) DeleteOwnExperience(w http.ResponseWriter, r *http.Request, params DeleteOwnExperienceParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -255,6 +269,46 @@ func (siw *ServerInterfaceWrapper) StoreOwnProfile(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.StoreOwnProfile(w, r)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteOwnExperience operation middleware
+func (siw *ServerInterfaceWrapper) DeleteOwnExperience(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteOwnExperienceParams
+
+	// ------------- Required query parameter "guid" -------------
+
+	if paramValue := r.URL.Query().Get("guid"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "guid"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "guid", r.URL.Query(), &params.Guid)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "guid", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteOwnExperience(w, r, params)
 	}))
 
 	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
@@ -465,6 +519,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Put(options.BaseURL+"/api/v1/profile", wrapper.StoreOwnProfile)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/api/v1/profile/experience", wrapper.DeleteOwnExperience)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/api/v1/profile/experience", wrapper.FetchOwnExperience)

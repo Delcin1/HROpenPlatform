@@ -119,6 +119,21 @@ func (q *Queries) DeleteCompany(ctx context.Context, db DBTX, guid uuid.UUID) er
 	return err
 }
 
+const deleteExperience = `-- name: DeleteExperience :exec
+DELETE FROM company.profile_company 
+WHERE user_guid = $1 AND guid = $2
+`
+
+type DeleteExperienceParams struct {
+	UserGuid uuid.UUID
+	Guid     uuid.UUID
+}
+
+func (q *Queries) DeleteExperience(ctx context.Context, db DBTX, arg DeleteExperienceParams) error {
+	_, err := db.Exec(ctx, deleteExperience, arg.UserGuid, arg.Guid)
+	return err
+}
+
 const deleteProfileCompany = `-- name: DeleteProfileCompany :exec
 DELETE FROM company.profile_company 
 WHERE user_guid = $1 AND company_guid = $2

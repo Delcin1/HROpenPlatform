@@ -21,6 +21,7 @@ type Service interface {
 	UpdateCompany(ctx context.Context, userGUID string, companyId string, company *models.Company) (*models.Company, error)
 	DeleteCompany(ctx context.Context, userGUID string, companyId string) error
 	SearchCompanies(ctx context.Context, name string) ([]models.ShortCompany, error)
+	DeleteExperience(ctx context.Context, userGUID string, experienceGUID string) error
 }
 
 type service struct {
@@ -46,7 +47,7 @@ func (s *service) GetExperience(ctx context.Context, userGUID string) ([]models.
 				return err
 			}
 
-			guid := company.Guid.String()
+			guid := pc.Guid.String()
 			endDate := pc.FinishedAt.Time.Format(time.DateOnly)
 			companyGUID := pc.CompanyGuid.String()
 			experience := models.Experience{
@@ -283,6 +284,25 @@ func (s *service) SearchCompanies(ctx context.Context, name string) ([]models.Sh
 	})
 
 	return companies, err
+}
+
+func (s *service) DeleteExperience(ctx context.Context, userGUID string, experienceGUID string) error {
+	userGUIDUUID, err := uuid.Parse(userGUID)
+	if err != nil {
+		return err
+	}
+
+	experienceGUIDUUID, err := uuid.Parse(experienceGUID)
+	if err != nil {
+		return err
+	}
+
+	return s.repo.TxManager.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		return s.repo.Company.DeleteExperience(ctx, tx, repository_company.DeleteExperienceParams{
+			UserGuid: userGUIDUUID,
+			Guid:     experienceGUIDUUID,
+		})
+	})
 }
 
 func NewService(repo *repository.Repositories) Service {

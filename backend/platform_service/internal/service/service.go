@@ -39,6 +39,7 @@ type CompanyService interface {
 	UpdateCompany(ctx context.Context, userGUID string, companyId string, company *models.Company) (*models.Company, error)
 	DeleteCompany(ctx context.Context, userGUID string, companyId string) error
 	SearchCompanies(ctx context.Context, name string) ([]models.ShortCompany, error)
+	DeleteExperience(ctx context.Context, userGUID string, experienceGUID string) error
 }
 
 type CVService interface {

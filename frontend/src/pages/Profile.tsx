@@ -25,7 +25,7 @@ import {
   DialogContent,
   DialogActions,
 } from '@mui/material';
-import { Edit as EditIcon, Save as SaveIcon, Cancel as CancelIcon, Add as AddIcon } from '@mui/icons-material';
+import { Edit as EditIcon, Save as SaveIcon, Cancel as CancelIcon, Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { ProfileService } from '../api/profile';
 import type { ApiGetProfile, ApiUpdateProfile, Experience } from '../api/profile';
 
@@ -39,6 +39,7 @@ interface ExperienceFormData {
 export const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isExperienceDialogOpen, setIsExperienceDialogOpen] = useState(false);
+  const [editingExperience, setEditingExperience] = useState<Experience | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const queryClient = useQueryClient();
@@ -50,6 +51,8 @@ export const Profile = () => {
     end_date: '',
   });
 
+  const [experienceList, setExperienceList] = useState<Experience[]>([]);
+
   const { data: profile, isLoading, error: profileError } = useQuery<ApiGetProfile>({
     queryKey: ['profile'],
     queryFn: () => ProfileService.fetchOwnProfile(),
@@ -60,6 +63,12 @@ export const Profile = () => {
     queryKey: ['experience'],
     queryFn: () => ProfileService.fetchOwnExperience(),
   });
+
+  useEffect(() => {
+    if (experience) {
+      setExperienceList(experience);
+    }
+  }, [experience]);
 
   const updateProfileMutation = useMutation({
     mutationFn: (data: ApiUpdateProfile) => ProfileService.storeOwnProfile(data),
@@ -95,7 +104,22 @@ export const Profile = () => {
     },
   });
 
+  const deleteExperienceMutation = useMutation({
+    mutationFn: (guid: string) => ProfileService.deleteOwnExperience(guid),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['experience'] });
+      setSuccess(true);
+      setError('');
+    },
+    onError: (error: any) => {
+      setError(error.response?.data?.message || 'Ошибка при удалении опыта работы');
+      setSuccess(false);
+    },
+  });
+
   const [formData, setFormData] = useState<ApiUpdateProfile>({});
+
+  const [editingExperienceIndex, setEditingExperienceIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (profile) {
@@ -126,15 +150,57 @@ export const Profile = () => {
     setExperienceFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleAddExperience = () => {
-    const newExperience: Experience = {
-      company_name: experienceFormData.company_name,
-      position: experienceFormData.position,
-      start_date: experienceFormData.start_date,
-      end_date: experienceFormData.end_date || undefined,
-    };
+  const handleEditExperience = (exp: Experience) => {
+    setEditingExperience(exp);
+    setExperienceFormData({
+      company_name: exp.company_name,
+      position: exp.position,
+      start_date: exp.start_date,
+      end_date: exp.end_date || '',
+    });
+    setIsExperienceDialogOpen(true);
+  };
 
-    updateExperienceMutation.mutate(newExperience);
+  const handleCloseExperienceDialog = () => {
+    setIsExperienceDialogOpen(false);
+    setEditingExperience(null);
+    setExperienceFormData({
+      company_name: '',
+      position: '',
+      start_date: '',
+      end_date: '',
+    });
+  };
+
+  const handleAddExperience = () => {
+    if (editingExperience) {
+      const originalExp = experienceList.find(exp => 
+        editingExperience.guid !== null &&
+        exp.guid === editingExperience.guid);
+
+      if (originalExp) {
+        updateExperienceMutation.mutate({
+          ...originalExp,
+          company_name: experienceFormData.company_name,
+          position: experienceFormData.position,
+          start_date: experienceFormData.start_date,
+          end_date: experienceFormData.end_date || undefined,
+        });
+      }
+    } else {
+      updateExperienceMutation.mutate({
+        company_name: experienceFormData.company_name,
+        position: experienceFormData.position,
+        start_date: experienceFormData.start_date,
+        end_date: experienceFormData.end_date || undefined,
+      });
+    }
+  };
+
+  const handleDeleteExperience = (exp: Experience) => {
+    if (exp.guid) {
+      deleteExperienceMutation.mutate(exp.guid);
+    }
   };
 
   if (isLoading || experienceLoading) {
@@ -240,10 +306,23 @@ export const Profile = () => {
           </Button>
         </Box>
 
-        {experience && experience.length > 0 ? (
+        {experienceList && experienceList.length > 0 ? (
           <List>
-            {experience.map((exp: Experience, index: number) => (
-              <ListItem key={index} divider={index < experience.length - 1}>
+            {experienceList.map((exp: Experience, index: number) => (
+              <ListItem 
+                key={index} 
+                divider={index < experienceList.length - 1}
+                secondaryAction={
+                  <Box>
+                    <IconButton edge="end" onClick={() => handleEditExperience(exp)} sx={{ mr: 1 }}>
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton edge="end" onClick={() => handleDeleteExperience(exp)} color="error">
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
+                }
+              >
                 <ListItemText
                   primary={exp.company_name}
                   secondary={
@@ -266,9 +345,11 @@ export const Profile = () => {
         )}
       </Paper>
 
-      {/* Add Experience Dialog */}
-      <Dialog open={isExperienceDialogOpen} onClose={() => setIsExperienceDialogOpen(false)}>
-        <DialogTitle>Добавить опыт работы</DialogTitle>
+      {/* Add/Edit Experience Dialog */}
+      <Dialog open={isExperienceDialogOpen} onClose={handleCloseExperienceDialog}>
+        <DialogTitle>
+          {editingExperience ? 'Редактировать опыт работы' : 'Добавить опыт работы'}
+        </DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12}>
@@ -318,13 +399,13 @@ export const Profile = () => {
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setIsExperienceDialogOpen(false)}>Отмена</Button>
+          <Button onClick={handleCloseExperienceDialog}>Отмена</Button>
           <Button
             onClick={handleAddExperience}
             variant="contained"
             disabled={!experienceFormData.company_name || !experienceFormData.position || !experienceFormData.start_date}
           >
-            Добавить
+            {editingExperience ? 'Сохранить' : 'Добавить'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -79,3 +79,7 @@ SELECT * FROM company.profile_company WHERE user_guid = $1;
 SELECT * FROM company.companies 
 WHERE name ILIKE '%' || $1 || '%'
 LIMIT 10; 
+
+-- name: DeleteExperience :exec
+DELETE FROM company.profile_company 
+WHERE user_guid = $1 AND guid = $2;

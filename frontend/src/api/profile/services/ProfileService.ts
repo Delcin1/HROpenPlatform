@@ -120,4 +120,25 @@ export class ProfileService {
             },
         });
     }
+    /**
+     * Удалить опыт работы
+     * @param guid
+     * @returns any successful operation
+     * @throws ApiError
+     */
+    public static deleteOwnExperience(
+        guid: string,
+    ): CancelablePromise<any> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/api/v1/profile/experience',
+            query: {
+                'guid': guid,
+            },
+            errors: {
+                401: `Unauthorized`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
 }
