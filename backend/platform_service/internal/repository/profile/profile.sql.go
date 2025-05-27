@@ -143,7 +143,7 @@ func (q *Queries) GetProfileByGUID(ctx context.Context, db DBTX, guid uuid.UUID)
 }
 
 const getProfileCompanies = `-- name: GetProfileCompanies :many
-SELECT user_guid, company_guid, position, started_at, finished_at FROM company.profile_company WHERE user_guid = $1
+SELECT user_guid, company_guid, position, started_at, finished_at, guid FROM company.profile_company WHERE user_guid = $1
 `
 
 func (q *Queries) GetProfileCompanies(ctx context.Context, db DBTX, userGuid uuid.UUID) ([]CompanyProfileCompany, error) {
@@ -161,6 +161,7 @@ func (q *Queries) GetProfileCompanies(ctx context.Context, db DBTX, userGuid uui
 			&i.Position,
 			&i.StartedAt,
 			&i.FinishedAt,
+			&i.Guid,
 		); err != nil {
 			return nil, err
 		}
@@ -285,7 +286,7 @@ SET
     position = $1,
     finished_at = $2
 WHERE user_guid = $3 AND company_guid = $4
-RETURNING user_guid, company_guid, position, started_at, finished_at
+RETURNING user_guid, company_guid, position, started_at, finished_at, guid
 `
 
 type UpdateProfileCompanyParams struct {
@@ -309,6 +310,7 @@ func (q *Queries) UpdateProfileCompany(ctx context.Context, db DBTX, arg UpdateP
 		&i.Position,
 		&i.StartedAt,
 		&i.FinishedAt,
+		&i.Guid,
 	)
 	return i, err
 }

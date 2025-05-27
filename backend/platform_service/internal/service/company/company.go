@@ -47,14 +47,18 @@ func (s *service) GetExperience(ctx context.Context, userGUID string) ([]models.
 			}
 
 			guid := company.Guid.String()
+			endDate := pc.FinishedAt.Time.Format(time.DateOnly)
+			companyGUID := pc.CompanyGuid.String()
 			experience := models.Experience{
 				CompanyName: company.Name,
 				Position:    pc.Position,
-				StartDate:   pc.StartedAt.Time.Format(time.RFC3339),
-				Guid:        &guid,
+				StartDate:   pc.StartedAt.Time.Format(time.DateOnly),
+				GUID:        &guid,
+				EndDate:     &endDate,
+				CompanyGUID: &companyGUID,
 			}
 			if pc.FinishedAt.Valid {
-				endDate := pc.FinishedAt.Time.Format(time.RFC3339)
+				endDate := pc.FinishedAt.Time.Format(time.DateOnly)
 				experience.EndDate = &endDate
 			}
 			experiences = append(experiences, experience)
@@ -71,37 +75,58 @@ func (s *service) UpdateExperience(ctx context.Context, userGUID string, experie
 		return err
 	}
 
-	return s.repo.TxManager.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		if experience.Guid != nil {
-			companyGUID, err := uuid.Parse(*experience.Guid)
-			if err != nil {
-				return err
-			}
+	companyGUID := experience.CompanyGUID
 
-			startDate, err := time.Parse(time.RFC3339, experience.StartDate)
-			if err != nil {
-				return err
-			}
-
-			var endDate sql.NullTime
-			if experience.EndDate != nil {
-				endTime, err := time.Parse(time.RFC3339, *experience.EndDate)
-				if err != nil {
-					return err
-				}
-				endDate = sql.NullTime{Time: endTime, Valid: true}
-			}
-
-			_, err = s.repo.Company.UpdateProfileCompany(ctx, tx, repository_company.UpdateProfileCompanyParams{
-				Position:    experience.Position,
-				FinishedAt:  endDate,
-				UserGuid:    userGUIDUUID,
-				CompanyGuid: companyGUID,
-				StartedAt:   sql.NullTime{Time: startDate, Valid: true},
-			})
+	if companyGUID == nil {
+		var newCompany *models.Company
+		newCompany, err = s.CreateCompany(ctx, userGUID, &models.Company{Name: experience.CompanyName})
+		if err != nil {
 			return err
 		}
-		return nil
+
+		companyGUID = &newCompany.Guid
+	}
+
+	return s.repo.TxManager.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		var guid uuid.UUID
+		if experience.GUID == nil {
+			guid = uuid.New()
+		} else {
+			guid, err = uuid.Parse(*experience.GUID)
+			if err != nil {
+				return err
+			}
+		}
+
+		var companyGUIDUUID uuid.UUID
+		companyGUIDUUID, err = uuid.Parse(*companyGUID)
+		if err != nil {
+			return err
+		}
+
+		startDate, err := time.Parse(time.DateOnly, experience.StartDate)
+		if err != nil {
+			return err
+		}
+
+		var endDate sql.NullTime
+		if experience.EndDate != nil {
+			endTime, err := time.Parse(time.DateOnly, *experience.EndDate)
+			if err != nil {
+				return err
+			}
+			endDate = sql.NullTime{Time: endTime, Valid: true}
+		}
+
+		err = s.repo.Company.UpdateProfileCompany(ctx, tx, repository_company.UpdateProfileCompanyParams{
+			Position:    experience.Position,
+			FinishedAt:  endDate,
+			UserGuid:    userGUIDUUID,
+			CompanyGuid: companyGUIDUUID,
+			StartedAt:   sql.NullTime{Time: startDate, Valid: true},
+			Guid:        guid,
+		})
+		return err
 	})
 }
 

@@ -5,8 +5,8 @@
 import type { ApiGetExperience } from '../models/ApiGetExperience';
 import type { ApiGetProfile } from '../models/ApiGetProfile';
 import type { ApiSearchProfileResp } from '../models/ApiSearchProfileResp';
-import type { ApiUpdateExperience } from '../models/ApiUpdateExperience';
 import type { ApiUpdateProfile } from '../models/ApiUpdateProfile';
+import type { Experience } from '../models/Experience';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
@@ -106,7 +106,7 @@ export class ProfileService {
      * @throws ApiError
      */
     public static storeOwnExperience(
-        requestBody: ApiUpdateExperience,
+        requestBody: Experience,
     ): CancelablePromise<ApiGetExperience> {
         return __request(OpenAPI, {
             method: 'PUT',

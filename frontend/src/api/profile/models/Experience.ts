@@ -4,9 +4,13 @@
 /* eslint-disable */
 export type Experience = {
     /**
-     * GUID компании
+     * GUID опыта работы
      */
     guid?: string;
+    /**
+     * GUID компании
+     */
+    company_guid?: string;
     /**
      * Название компании
      */

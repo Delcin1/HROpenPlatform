@@ -18,9 +18,7 @@ const (
 )
 
 // ApiGetExperience defines model for ApiGetExperience.
-type ApiGetExperience struct {
-	Experience []Experience `json:"experience"`
-}
+type ApiGetExperience = []Experience
 
 // ApiGetProfile defines model for ApiGetProfile.
 type ApiGetProfile struct {
@@ -62,11 +60,6 @@ type ApiSearchProfileResp struct {
 	Profiles []ShortProfile `json:"profiles"`
 }
 
-// ApiUpdateExperience defines model for ApiUpdateExperience.
-type ApiUpdateExperience struct {
-	Experience []Experience `json:"experience"`
-}
-
 // ApiUpdateProfile defines model for ApiUpdateProfile.
 type ApiUpdateProfile struct {
 	// Avatar Ссылка на аватар пользователя
@@ -93,13 +86,16 @@ type ApiUpdateProfile struct {
 
 // Experience defines model for Experience.
 type Experience struct {
+	// CompanyGuid GUID компании
+	CompanyGuid *string `json:"company_guid,omitempty"`
+
 	// CompanyName Название компании
 	CompanyName string `json:"company_name"`
 
 	// EndDate Дата окончания работы
 	EndDate *string `json:"end_date,omitempty"`
 
-	// Guid GUID компании
+	// Guid GUID опыта работы
 	Guid *string `json:"guid,omitempty"`
 
 	// Position Должность
@@ -135,7 +131,7 @@ type SearchProfileByDescriptionParams struct {
 type StoreOwnProfileJSONRequestBody = ApiUpdateProfile
 
 // StoreOwnExperienceJSONRequestBody defines body for StoreOwnExperience for application/json ContentType.
-type StoreOwnExperienceJSONRequestBody = ApiUpdateExperience
+type StoreOwnExperienceJSONRequestBody = Experience
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {

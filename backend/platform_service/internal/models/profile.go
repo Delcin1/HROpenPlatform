@@ -18,11 +18,12 @@ type Profile struct {
 }
 
 type Experience struct {
+	GUID        *string `json:"guid,omitempty"`
 	CompanyName string  `json:"company_name"`
 	Position    string  `json:"position"`
 	StartDate   string  `json:"start_date"`
 	EndDate     *string `json:"end_date,omitempty"`
-	Guid        *string `json:"guid,omitempty"`
+	CompanyGUID *string `json:"company_guid,omitempty"`
 }
 
 type ShortProfile struct {

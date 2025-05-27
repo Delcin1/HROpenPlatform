@@ -3,7 +3,4 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { Experience } from './Experience';
-export type ApiGetExperience = {
-    experience: Array<Experience>;
-};
-
+export type ApiGetExperience = Array<Experience>;

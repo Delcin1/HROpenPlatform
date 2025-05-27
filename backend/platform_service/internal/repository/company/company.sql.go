@@ -69,17 +69,19 @@ func (q *Queries) CreateCompany(ctx context.Context, db DBTX, arg CreateCompanyP
 
 const createProfileCompany = `-- name: CreateProfileCompany :one
 INSERT INTO company.profile_company (
+    guid,
     user_guid,
     company_guid,
     position,
     started_at,
     finished_at
 ) VALUES (
-    $1, $2, $3, $4, $5
-) RETURNING user_guid, company_guid, position, started_at, finished_at
+    $1, $2, $3, $4, $5, $6
+) RETURNING user_guid, company_guid, position, started_at, finished_at, guid
 `
 
 type CreateProfileCompanyParams struct {
+	Guid        uuid.UUID
 	UserGuid    uuid.UUID
 	CompanyGuid uuid.UUID
 	Position    string
@@ -89,6 +91,7 @@ type CreateProfileCompanyParams struct {
 
 func (q *Queries) CreateProfileCompany(ctx context.Context, db DBTX, arg CreateProfileCompanyParams) (CompanyProfileCompany, error) {
 	row := db.QueryRow(ctx, createProfileCompany,
+		arg.Guid,
 		arg.UserGuid,
 		arg.CompanyGuid,
 		arg.Position,
@@ -102,6 +105,7 @@ func (q *Queries) CreateProfileCompany(ctx context.Context, db DBTX, arg CreateP
 		&i.Position,
 		&i.StartedAt,
 		&i.FinishedAt,
+		&i.Guid,
 	)
 	return i, err
 }
@@ -173,7 +177,7 @@ func (q *Queries) GetCompanyByShortLink(ctx context.Context, db DBTX, shortLinkN
 }
 
 const getProfileCompanies = `-- name: GetProfileCompanies :many
-SELECT user_guid, company_guid, position, started_at, finished_at FROM company.profile_company WHERE user_guid = $1
+SELECT user_guid, company_guid, position, started_at, finished_at, guid FROM company.profile_company WHERE user_guid = $1
 `
 
 func (q *Queries) GetProfileCompanies(ctx context.Context, db DBTX, userGuid uuid.UUID) ([]CompanyProfileCompany, error) {
@@ -191,6 +195,7 @@ func (q *Queries) GetProfileCompanies(ctx context.Context, db DBTX, userGuid uui
 			&i.Position,
 			&i.StartedAt,
 			&i.FinishedAt,
+			&i.Guid,
 		); err != nil {
 			return nil, err
 		}
@@ -203,7 +208,7 @@ func (q *Queries) GetProfileCompanies(ctx context.Context, db DBTX, userGuid uui
 }
 
 const getProfileCompany = `-- name: GetProfileCompany :one
-SELECT user_guid, company_guid, position, started_at, finished_at FROM company.profile_company 
+SELECT user_guid, company_guid, position, started_at, finished_at, guid FROM company.profile_company 
 WHERE user_guid = $1 AND company_guid = $2
 `
 
@@ -221,6 +226,7 @@ func (q *Queries) GetProfileCompany(ctx context.Context, db DBTX, arg GetProfile
 		&i.Position,
 		&i.StartedAt,
 		&i.FinishedAt,
+		&i.Guid,
 	)
 	return i, err
 }
@@ -315,39 +321,40 @@ func (q *Queries) UpdateCompany(ctx context.Context, db DBTX, arg UpdateCompanyP
 	return i, err
 }
 
-const updateProfileCompany = `-- name: UpdateProfileCompany :one
-UPDATE company.profile_company 
-SET 
-    position = $1,
-    finished_at = $2,
-    started_at = $3
-WHERE user_guid = $4 AND company_guid = $5
-RETURNING user_guid, company_guid, position, started_at, finished_at
+const updateProfileCompany = `-- name: UpdateProfileCompany :exec
+INSERT INTO company.profile_company (
+    guid,
+    user_guid,
+    company_guid,
+    position,
+    started_at,
+    finished_at
+) VALUES (
+    $1, $2, $3, $4, $5, $6
+) ON CONFLICT (guid) DO UPDATE SET
+    position = $4,
+    finished_at = $6,
+    started_at = $5
+WHERE company.profile_company.guid = $1
 `
 
 type UpdateProfileCompanyParams struct {
-	Position    string
-	FinishedAt  sql.NullTime
-	StartedAt   sql.NullTime
+	Guid        uuid.UUID
 	UserGuid    uuid.UUID
 	CompanyGuid uuid.UUID
+	Position    string
+	StartedAt   sql.NullTime
+	FinishedAt  sql.NullTime
 }
 
-func (q *Queries) UpdateProfileCompany(ctx context.Context, db DBTX, arg UpdateProfileCompanyParams) (CompanyProfileCompany, error) {
-	row := db.QueryRow(ctx, updateProfileCompany,
-		arg.Position,
-		arg.FinishedAt,
-		arg.StartedAt,
+func (q *Queries) UpdateProfileCompany(ctx context.Context, db DBTX, arg UpdateProfileCompanyParams) error {
+	_, err := db.Exec(ctx, updateProfileCompany,
+		arg.Guid,
 		arg.UserGuid,
 		arg.CompanyGuid,
+		arg.Position,
+		arg.StartedAt,
+		arg.FinishedAt,
 	)
-	var i CompanyProfileCompany
-	err := row.Scan(
-		&i.UserGuid,
-		&i.CompanyGuid,
-		&i.Position,
-		&i.StartedAt,
-		&i.FinishedAt,
-	)
-	return i, err
+	return err
 }

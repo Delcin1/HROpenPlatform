@@ -28,4 +28,5 @@ type CompanyProfileCompany struct {
 	Position    string
 	StartedAt   sql.NullTime
 	FinishedAt  sql.NullTime
+	Guid        uuid.UUID
 }

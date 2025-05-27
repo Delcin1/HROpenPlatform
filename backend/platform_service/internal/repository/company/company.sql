@@ -42,23 +42,31 @@ WHERE user_guid = $1 AND company_guid = $2;
 
 -- name: CreateProfileCompany :one
 INSERT INTO company.profile_company (
+    guid,
     user_guid,
     company_guid,
     position,
     started_at,
     finished_at
 ) VALUES (
-    $1, $2, $3, $4, $5
+    $1, $2, $3, $4, $5, $6
 ) RETURNING *;
 
--- name: UpdateProfileCompany :one
-UPDATE company.profile_company 
-SET 
-    position = $1,
-    finished_at = $2,
-    started_at = $3
-WHERE user_guid = $4 AND company_guid = $5
-RETURNING *;
+-- name: UpdateProfileCompany :exec
+INSERT INTO company.profile_company (
+    guid,
+    user_guid,
+    company_guid,
+    position,
+    started_at,
+    finished_at
+) VALUES (
+    $1, $2, $3, $4, $5, $6
+) ON CONFLICT (guid) DO UPDATE SET
+    position = $4,
+    finished_at = $6,
+    started_at = $5
+WHERE company.profile_company.guid = $1;
 
 -- name: DeleteProfileCompany :exec
 DELETE FROM company.profile_company 

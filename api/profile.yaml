@@ -127,7 +127,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ApiUpdateExperience'
+              $ref: '#/components/schemas/Experience'
       responses:
         '200':
           description: successful operation
@@ -278,24 +278,9 @@ components:
           example: 2021-01-01T00:00:00Z
 
     ApiGetExperience:
-      type: object
-      required:
-        - experience
-      properties:
-        experience:
-          type: array
-          items:
-            $ref: '#/components/schemas/Experience'
-
-    ApiUpdateExperience:
-      type: object
-      required:
-        - experience
-      properties:
-        experience:
-          type: array
-          items:
-            $ref: '#/components/schemas/Experience'
+      type: array
+      items:
+        $ref: '#/components/schemas/Experience'
 
     Experience:
       type: object
@@ -305,6 +290,10 @@ components:
         - start_date
       properties:
         guid:
+          type: string
+          description: GUID опыта работы
+          example: 123e4567-e89b-12d3-a456-426614174000
+        company_guid:
           type: string
           description: GUID компании
           example: 123e4567-e89b-12d3-a456-426614174000

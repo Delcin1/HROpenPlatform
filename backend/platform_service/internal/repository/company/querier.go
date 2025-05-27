@@ -22,7 +22,7 @@ type Querier interface {
 	GetProfileCompany(ctx context.Context, db DBTX, arg GetProfileCompanyParams) (CompanyProfileCompany, error)
 	SearchCompanies(ctx context.Context, db DBTX, dollar_1 sql.NullString) ([]CompanyCompany, error)
 	UpdateCompany(ctx context.Context, db DBTX, arg UpdateCompanyParams) (CompanyCompany, error)
-	UpdateProfileCompany(ctx context.Context, db DBTX, arg UpdateProfileCompanyParams) (CompanyProfileCompany, error)
+	UpdateProfileCompany(ctx context.Context, db DBTX, arg UpdateProfileCompanyParams) error
 }
 
 var _ Querier = (*Queries)(nil)
