@@ -22,6 +22,7 @@ import {
   Business as BusinessIcon,
   Description as DescriptionIcon,
   Logout as LogoutIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -30,7 +31,8 @@ const drawerWidth = 240;
 const menuItems = [
   { text: 'Профиль', icon: <PersonIcon />, path: '/profile' },
   { text: 'Компании', icon: <BusinessIcon />, path: '/companies' },
-  { text: 'Резюме', icon: <DescriptionIcon />, path: '/cv' },
+  { text: 'Загрузить резюме', icon: <DescriptionIcon />, path: '/cv' },
+  { text: 'Поиск профилей', icon: <SearchIcon />, path: '/search' },
 ];
 
 export const Navigation = () => {

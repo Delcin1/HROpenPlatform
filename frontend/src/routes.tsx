@@ -9,6 +9,8 @@ import { Companies } from './pages/Companies';
 import { CompanyDetails } from './pages/CompanyDetails';
 import { NewCompany } from './pages/NewCompany';
 import { CV } from './pages/CV';
+import { UserProfile } from './pages/UserProfile';
+import { SearchProfiles } from './pages/SearchProfiles';
 
 export const AppRoutes = () => {
   return (
@@ -30,6 +32,8 @@ export const AppRoutes = () => {
         <Route path="companies/new" element={<NewCompany />} />
         <Route path="companies/:id" element={<CompanyDetails />} />
         <Route path="cv" element={<CV />} />
+        <Route path="profile/:guid" element={<UserProfile />} />
+        <Route path="search" element={<SearchProfiles />} />
       </Route>
     </Routes>
   );

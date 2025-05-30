@@ -14,4 +14,5 @@ export type { ApiUpdateProfile } from './models/ApiUpdateProfile';
 export type { Experience } from './models/Experience';
 export type { ShortProfile } from './models/ShortProfile';
 
+export { DefaultService } from './services/DefaultService';
 export { ProfileService } from './services/ProfileService';

@@ -161,6 +161,12 @@ type ServerInterface interface {
 	// Найти данные чужого профиля по части ФИО
 	// (GET /api/v1/profile/search)
 	SearchProfileByDescription(w http.ResponseWriter, r *http.Request, params SearchProfileByDescriptionParams)
+	// Получить данные чужого профиля
+	// (GET /api/v1/profile/{guid})
+	GetProfileByGuid(w http.ResponseWriter, r *http.Request, guid string)
+	// Получить данные опыта работы чужого профиля
+	// (GET /api/v1/profile/{guid}/experience)
+	GetExperienceByGuid(w http.ResponseWriter, r *http.Request, guid string)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -206,6 +212,18 @@ func (_ Unimplemented) StoreOwnExperience(w http.ResponseWriter, r *http.Request
 // Найти данные чужого профиля по части ФИО
 // (GET /api/v1/profile/search)
 func (_ Unimplemented) SearchProfileByDescription(w http.ResponseWriter, r *http.Request, params SearchProfileByDescriptionParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Получить данные чужого профиля
+// (GET /api/v1/profile/{guid})
+func (_ Unimplemented) GetProfileByGuid(w http.ResponseWriter, r *http.Request, guid string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Получить данные опыта работы чужого профиля
+// (GET /api/v1/profile/{guid}/experience)
+func (_ Unimplemented) GetExperienceByGuid(w http.ResponseWriter, r *http.Request, guid string) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -398,6 +416,56 @@ func (siw *ServerInterfaceWrapper) SearchProfileByDescription(w http.ResponseWri
 	handler.ServeHTTP(w, r)
 }
 
+// GetProfileByGuid operation middleware
+func (siw *ServerInterfaceWrapper) GetProfileByGuid(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "guid" -------------
+	var guid string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "guid", chi.URLParam(r, "guid"), &guid, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "guid", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetProfileByGuid(w, r, guid)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetExperienceByGuid operation middleware
+func (siw *ServerInterfaceWrapper) GetExperienceByGuid(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "guid" -------------
+	var guid string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "guid", chi.URLParam(r, "guid"), &guid, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "guid", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetExperienceByGuid(w, r, guid)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -531,6 +599,12 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/api/v1/profile/search", wrapper.SearchProfileByDescription)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/v1/profile/{guid}", wrapper.GetProfileByGuid)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/v1/profile/{guid}/experience", wrapper.GetExperienceByGuid)
 	})
 
 	return r

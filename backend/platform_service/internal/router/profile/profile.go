@@ -5,6 +5,8 @@ import (
 	"PlatformService/internal/router/mw"
 	"PlatformService/internal/service"
 	"encoding/json"
+	"errors"
+	"github.com/jackc/pgx/v4"
 	"log/slog"
 	"net/http"
 )
@@ -12,6 +14,49 @@ import (
 type Server struct {
 	services *service.Services
 	log      *slog.Logger
+}
+
+// GetExperienceByGuid implements ServerInterface.
+func (s *Server) GetExperienceByGuid(w http.ResponseWriter, r *http.Request, guid string) {
+	ctx := r.Context()
+
+	experience, err := s.services.Company.GetExperience(ctx, guid)
+	if err != nil {
+		s.log.ErrorContext(ctx, "profileServer.GetExperienceByGuid failed to get experience", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(experience)
+}
+
+// GetProfileByGuid implements ServerInterface.
+func (s *Server) GetProfileByGuid(w http.ResponseWriter, r *http.Request, guid string) {
+	ctx := r.Context()
+
+	profile, err := s.services.Profile.GetProfile(ctx, guid)
+	if err != nil {
+		s.log.ErrorContext(ctx, "profileServer.GetProfileByGuid failed to get profile", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	cvLink, err := s.services.CV.GetCVLink(ctx, guid)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		s.log.ErrorContext(ctx, "profileServer.GetProfileByGuid failed to get cv link", "error", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if !errors.Is(err, pgx.ErrNoRows) {
+		profile.Cv = &cvLink
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(profile)
 }
 
 // GetProfile implements ServerInterface.
@@ -249,9 +294,20 @@ func (s *Server) SearchProfileByDescription(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	var resp ApiSearchProfileResp
+	for _, profile := range profiles {
+		resp.Profiles = append(resp.Profiles, ShortProfile{
+			CompanyName: nil,
+			Description: profile.Description,
+			Guid:        profile.Guid,
+			IsHr:        profile.IsHr,
+			UpdatedAt:   profile.UpdatedAt,
+		})
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(profiles)
+	json.NewEncoder(w).Encode(resp)
 }
 
 // DeleteOwnExperience implements ServerInterface.
