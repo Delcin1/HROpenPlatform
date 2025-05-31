@@ -76,13 +76,14 @@ func (s *Server) GetProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cvLink, err := s.services.CV.GetCVLink(ctx, userGUID)
-	if err != nil {
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		s.log.ErrorContext(ctx, "profileServer.GetProfile failed to get cv link", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	profile.Cv = &cvLink
+	if !errors.Is(err, pgx.ErrNoRows) {
+		profile.Cv = &cvLink
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -221,10 +222,13 @@ func (s *Server) FetchOwnProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cvLink, err := s.services.CV.GetCVLink(ctx, userGUID)
-	if err != nil {
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		s.log.ErrorContext(ctx, "profileServer.FetchOwnProfile failed to get cv link", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		profile.Cv = &cvLink
 	}
 
 	profile.Cv = &cvLink

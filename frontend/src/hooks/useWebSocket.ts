@@ -1,15 +1,17 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const WS_URL = 'ws://localhost:8080';
 
 export const useWebSocket = (chatId: string | null) => {
   const wsRef = useRef<WebSocket | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
     if (!chatId) {
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.close();
       }
+      setIsConnected(false);
       return;
     }
 
@@ -19,6 +21,7 @@ export const useWebSocket = (chatId: string | null) => {
     
     if (!token) {
       console.error('WebSocket: No auth token found in localStorage. Please login first.');
+      setIsConnected(false);
       return;
     }
 
@@ -31,14 +34,17 @@ export const useWebSocket = (chatId: string | null) => {
 
     ws.onopen = () => {
       console.log('WebSocket: Connected successfully');
+      setIsConnected(true);
     };
 
     ws.onclose = (event) => {
       console.log('WebSocket: Disconnected:', event.code, event.reason);
+      setIsConnected(false);
     };
 
     ws.onerror = (error) => {
       console.error('WebSocket: Error:', error);
+      setIsConnected(false);
     };
 
     return () => {
@@ -46,6 +52,7 @@ export const useWebSocket = (chatId: string | null) => {
         console.log('WebSocket: Closing connection');
         wsRef.current.close();
       }
+      setIsConnected(false);
     };
   }, [chatId]);
 
@@ -85,5 +92,5 @@ export const useWebSocket = (chatId: string | null) => {
     };
   };
 
-  return { sendMessage, onMessage };
+  return { sendMessage, onMessage, isConnected };
 }; 

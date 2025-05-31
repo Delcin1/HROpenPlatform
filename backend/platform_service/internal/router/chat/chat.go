@@ -187,11 +187,11 @@ func (s *Server) SendMessage(w http.ResponseWriter, r *http.Request, chatId stri
 func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request, chatId string, params HandleWebSocketParams) {
 	ctx := r.Context()
 	claims, err := auth.ValidateToken(params.Token, s.cfg.AccessTokenSecret)
-			if err != nil {
-				s.log.ErrorContext(ctx, "authMiddleware.ValidateToken failed to validate token", "error", err)
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
-				return
-			}
+	if err != nil {
+		s.log.ErrorContext(ctx, "authMiddleware.ValidateToken failed to validate token", "error", err)
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {

@@ -29,7 +29,7 @@ export const Chat = () => {
   const [messageText, setMessageText] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [wsError, setWsError] = useState<string | null>(null);
-  const [isWsConnected, setIsWsConnected] = useState(false);
+  const { sendMessage, onMessage, isConnected } = useWebSocket(selectedChat);
 
   const { data: chats, isLoading: chatsLoading, error: chatsError } = useQuery<ChatWithLastMessage[]>({
     queryKey: ['chats'],
@@ -108,11 +108,8 @@ export const Chat = () => {
     enabled: !!selectedChat,
   });
 
-  const { sendMessage, onMessage } = useWebSocket(selectedChat);
-
   useEffect(() => {
     if (!selectedChat) {
-      setIsWsConnected(false);
       setWsError(null);
       return;
     }
@@ -123,7 +120,6 @@ export const Chat = () => {
     if (!token) {
       console.error('Chat: No auth token found in localStorage. Please login first.');
       setWsError('Требуется авторизация. Пожалуйста, войдите в систему.');
-      setIsWsConnected(false);
       return;
     }
 
@@ -136,7 +132,6 @@ export const Chat = () => {
         }
         return [message, ...prev];
       });
-      setIsWsConnected(true);
       setWsError(null);
     });
 
@@ -144,7 +139,6 @@ export const Chat = () => {
       if (unsubscribe) {
         unsubscribe();
       }
-      setIsWsConnected(false);
       setWsError(null);
     };
   }, [selectedChat, onMessage]);
@@ -232,11 +226,6 @@ export const Chat = () => {
                 <Typography variant="h6">
                   {Array.isArray(chats) && chats.find((c) => c.chat.id === selectedChat)?.chat.users.join(', ')}
                 </Typography>
-                {!isWsConnected && (
-                  <Typography variant="caption" color="error">
-                    Соединение потеряно
-                  </Typography>
-                )}
               </Box>
 
               {wsError && (
@@ -281,12 +270,12 @@ export const Chat = () => {
                     value={messageText}
                     onChange={(e) => setMessageText(e.target.value)}
                     placeholder="Введите сообщение..."
-                    disabled={!isWsConnected}
+                    disabled={!isConnected}
                   />
                   <IconButton
                     type="submit"
                     color="primary"
-                    disabled={!messageText.trim() || !isWsConnected}
+                    disabled={!messageText.trim() || !isConnected}
                   >
                     <SendIcon />
                   </IconButton>
