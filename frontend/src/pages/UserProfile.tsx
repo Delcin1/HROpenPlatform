@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useParams } from 'react-router-dom';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   Container,
   Box,
@@ -15,12 +15,15 @@ import {
   Avatar,
   Button,
 } from '@mui/material';
+import { Chat as ChatIcon } from '@mui/icons-material';
 import { DefaultService } from '../api/profile';
+import { ChatService } from '../api/chat';
 import type { ApiGetProfile, Experience } from '../api/profile';
 
 export const UserProfile = () => {
   const { guid } = useParams<{ guid: string }>();
-  const [error] = useState('');
+  const navigate = useNavigate();
+  const [error, setError] = useState('');
 
   const { data: profile, isLoading, error: profileError } = useQuery<ApiGetProfile>({
     queryKey: ['profile', guid],
@@ -33,6 +36,26 @@ export const UserProfile = () => {
     queryFn: () => DefaultService.getExperienceByGuid(guid!),
     enabled: !!guid,
   });
+
+  const createChatMutation = useMutation({
+    mutationFn: (users: string[]) => ChatService.createChat({ users }),
+    onSuccess: (data) => {
+      if (data && data.id) {
+        navigate(`/chat?chatId=${data.id}`);
+      } else {
+        setError('Ошибка: не удалось получить ID чата');
+      }
+    },
+    onError: (error: any) => {
+      setError(error.response?.data?.message || 'Ошибка при создании чата');
+    },
+  });
+
+  const handleStartChat = () => {
+    if (guid) {
+      createChatMutation.mutate([guid]);
+    }
+  };
 
   if (isLoading || experienceLoading) {
     return (
@@ -68,9 +91,19 @@ export const UserProfile = () => {
             sx={{ width: 120, height: 120, mr: 3 }}
           />
           <Box sx={{ flex: 1 }}>
-            <Typography variant="h4" gutterBottom>
-              {profile?.description}
-            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <Typography variant="h4" gutterBottom>
+                {profile?.description}
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<ChatIcon />}
+                onClick={handleStartChat}
+                disabled={createChatMutation.isPending}
+              >
+                {createChatMutation.isPending ? 'Создание чата...' : 'Написать сообщение'}
+              </Button>
+            </Box>
             <Typography variant="body1" color="text.secondary" gutterBottom>
               {profile?.company_name && `Работает в ${profile.company_name}`}
             </Typography>

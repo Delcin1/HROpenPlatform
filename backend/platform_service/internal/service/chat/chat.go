@@ -4,9 +4,11 @@ import (
 	"PlatformService/internal/models"
 	"PlatformService/internal/repository"
 	"PlatformService/internal/repository/chat"
+	"PlatformService/internal/utils"
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/jackc/pgtype"
 	"sync"
 
 	"github.com/google/uuid"
@@ -109,9 +111,14 @@ func (s *service) GetUserChats(ctx context.Context, userID string) ([]models.Cha
 				return err
 			}
 
-			users, ok := result.Users.([]string)
+			users, ok := result.Users.(pgtype.UUIDArray)
 			if !ok {
 				return errors.New("failed to cast users to []string")
+			}
+
+			usersGUIDs, err := utils.UUIDArrayToStringArray(users)
+			if err != nil {
+				return err
 			}
 
 			chat := models.ChatWithLastMessage{
@@ -119,7 +126,7 @@ func (s *service) GetUserChats(ctx context.Context, userID string) ([]models.Cha
 					ID:        result.ID.String(),
 					CreatedAt: result.CreatedAt,
 					UpdatedAt: result.UpdatedAt,
-					Users:     users,
+					Users:     usersGUIDs,
 				},
 				LastMessage: lastMessage,
 				UnreadCount: int(unreadCount),

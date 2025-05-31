@@ -6,12 +6,17 @@ export const useWebSocket = (chatId: string | null) => {
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    if (!chatId) return;
+    if (!chatId) {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.close();
+      }
+      return;
+    }
 
     // Получаем токен из localStorage
     const token = localStorage.getItem('token');
     if (!token) {
-      console.error('No auth token found');
+      console.error('No auth token found in localStorage');
       return;
     }
 
@@ -20,7 +25,7 @@ export const useWebSocket = (chatId: string | null) => {
     wsRef.current = ws;
 
     ws.onopen = () => {
-      console.log('WebSocket connected');
+      console.log('WebSocket connected successfully');
     };
 
     ws.onclose = (event) => {
@@ -39,7 +44,12 @@ export const useWebSocket = (chatId: string | null) => {
   }, [chatId]);
 
   const sendMessage = (text: string) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
+    if (!wsRef.current) {
+      console.error('WebSocket is not initialized');
+      return;
+    }
+
+    if (wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(text);
     } else {
       console.error('WebSocket is not connected');

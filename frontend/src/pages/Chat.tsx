@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import {
   Container,
   Box,
@@ -22,7 +23,9 @@ import type { ChatWithLastMessage, Message } from '../api/chat';
 import { useWebSocket } from '../hooks/useWebSocket';
 
 export const Chat = () => {
-  const [selectedChat, setSelectedChat] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const initialChatId = searchParams.get('chatId');
+  const [selectedChat, setSelectedChat] = useState<string | null>(initialChatId);
   const [messageText, setMessageText] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [wsError, setWsError] = useState<string | null>(null);
@@ -31,19 +34,77 @@ export const Chat = () => {
   const { data: chats, isLoading: chatsLoading, error: chatsError } = useQuery<ChatWithLastMessage[]>({
     queryKey: ['chats'],
     queryFn: async () => {
-      const response = await ChatService.getUserChats();
-      // Убедимся, что response - это массив
-      if (!Array.isArray(response)) {
-        console.error('Expected array of chats, got:', response);
+      try {
+        const response = await ChatService.getUserChats();
+        console.log('Server response:', response);
+        console.log('Response type:', typeof response);
+        
+        // Проверяем, что response существует
+        if (!response) {
+          console.error('Response is null or undefined');
+          return [];
+        }
+
+        // Если response это строка, пытаемся распарсить её как JSON
+        let parsedResponse = response;
+        if (typeof response === 'string') {
+          try {
+            parsedResponse = JSON.parse(response);
+          } catch (e) {
+            console.error('Failed to parse response as JSON:', e);
+            return [];
+          }
+        }
+
+        // Проверяем, что распарсенный ответ является массивом
+        if (!Array.isArray(parsedResponse)) {
+          console.error('Parsed response is not an array:', parsedResponse);
+          return [];
+        }
+
+        return parsedResponse;
+      } catch (error) {
+        console.error('Error fetching chats:', error);
         return [];
       }
-      return response;
     },
   });
 
   const { data: chatMessages, isLoading: messagesLoading } = useQuery<Message[]>({
     queryKey: ['messages', selectedChat],
-    queryFn: () => ChatService.getChatMessages(selectedChat!, 50, 0),
+    queryFn: async () => {
+      if (!selectedChat) return [];
+      try {
+        const response = await ChatService.getChatMessages(selectedChat, 50, 0);
+        // Проверяем, что response существует
+        if (!response) {
+          console.error('Messages response is null or undefined');
+          return [];
+        }
+
+        // Если response это строка, пытаемся распарсить её как JSON
+        let parsedResponse = response;
+        if (typeof response === 'string') {
+          try {
+            parsedResponse = JSON.parse(response);
+          } catch (e) {
+            console.error('Failed to parse messages response as JSON:', e);
+            return [];
+          }
+        }
+
+        // Проверяем, что распарсенный ответ является массивом
+        if (!Array.isArray(parsedResponse)) {
+          console.error('Parsed messages response is not an array:', parsedResponse);
+          return [];
+        }
+
+        return parsedResponse;
+      } catch (error) {
+        console.error('Error fetching messages:', error);
+        return [];
+      }
+    },
     enabled: !!selectedChat,
   });
 
@@ -51,38 +112,49 @@ export const Chat = () => {
 
   // Отслеживаем состояние WebSocket соединения
   useEffect(() => {
-    if (selectedChat) {
-      const ws = new WebSocket(`ws://localhost:8080/api/v1/chat/${selectedChat}/ws?token=${localStorage.getItem('token')}`);
-      
-      ws.onopen = () => {
-        console.log('WebSocket connected');
-        setIsWsConnected(true);
-        setWsError(null);
-      };
-
-      ws.onclose = (event) => {
-        console.log('WebSocket disconnected:', event.code, event.reason);
-        setIsWsConnected(false);
-        setWsError('Соединение потеряно. Попытка переподключения...');
-      };
-
-      ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        setWsError('Ошибка соединения');
-        setIsWsConnected(false);
-      };
-
-      return () => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.close();
-        }
-      };
+    if (!selectedChat) {
+      setIsWsConnected(false);
+      setWsError(null);
+      return;
     }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setWsError('Требуется авторизация');
+      setIsWsConnected(false);
+      return;
+    }
+
+    const ws = new WebSocket(`ws://localhost:8080/api/v1/chat/${selectedChat}/ws?token=${token}`);
+    
+    ws.onopen = () => {
+      console.log('WebSocket connected');
+      setIsWsConnected(true);
+      setWsError(null);
+    };
+
+    ws.onclose = (event) => {
+      console.log('WebSocket disconnected:', event.code, event.reason);
+      setIsWsConnected(false);
+      setWsError('Соединение потеряно. Попытка переподключения...');
+    };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+      setWsError('Ошибка соединения');
+      setIsWsConnected(false);
+    };
+
+    return () => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+    };
   }, [selectedChat]);
 
   useEffect(() => {
     if (chatMessages) {
-      setMessages(chatMessages);
+      setMessages(Array.isArray(chatMessages) ? chatMessages : []);
     }
   }, [chatMessages]);
 
@@ -90,7 +162,7 @@ export const Chat = () => {
     if (selectedChat) {
       const unsubscribe = onMessage((message: Message) => {
         setMessages((prev) => {
-          // Проверяем, нет ли уже такого сообщения
+          if (!Array.isArray(prev)) return [message];
           if (prev.some(m => m.id === message.id)) {
             return prev;
           }
@@ -133,12 +205,11 @@ export const Chat = () => {
     );
   }
 
-  // Проверяем, что chats существует и является массивом
-  if (!chats || !Array.isArray(chats)) {
+  if (!chats || !Array.isArray(chats) || chats.length === 0) {
     return (
       <Box sx={{ mt: 4 }}>
-        <Alert severity="error">
-          Неверный формат данных чатов
+        <Alert severity="info">
+          У вас пока нет чатов
         </Alert>
       </Box>
     );
@@ -150,7 +221,7 @@ export const Chat = () => {
         {/* Chat List */}
         <Paper sx={{ width: 300, overflow: 'auto' }}>
           <List>
-            {chats.map((chat) => (
+            {Array.isArray(chats) && chats.map((chat) => (
               <ListItem
                 key={chat.chat.id}
                 button
@@ -177,7 +248,7 @@ export const Chat = () => {
             <>
               <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
                 <Typography variant="h6">
-                  {chats.find((c) => c.chat.id === selectedChat)?.chat.users.join(', ')}
+                  {Array.isArray(chats) && chats.find((c) => c.chat.id === selectedChat)?.chat.users.join(', ')}
                 </Typography>
                 {!isWsConnected && (
                   <Typography variant="caption" color="error">
@@ -199,7 +270,7 @@ export const Chat = () => {
                   </Box>
                 ) : (
                   <List>
-                    {messages.map((message) => (
+                    {Array.isArray(messages) && messages.map((message) => (
                       <ListItem
                         key={message.id}
                         sx={{

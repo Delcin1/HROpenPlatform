@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -15,19 +15,36 @@ import {
   Avatar,
   CircularProgress,
   Alert,
+  IconButton,
 } from '@mui/material';
+import { Chat as ChatIcon } from '@mui/icons-material';
 import { ProfileService } from '../api/profile';
+import { ChatService } from '../api/chat';
 import type { ApiSearchProfileResp } from '../api/profile';
 
 export const SearchProfiles = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [error] = useState('');
+  const [error, setError] = useState('');
 
   const { data: searchResult, isLoading, error: searchError } = useQuery<ApiSearchProfileResp>({
     queryKey: ['searchProfiles', searchQuery],
     queryFn: () => ProfileService.searchProfileByDescription(searchQuery),
     enabled: searchQuery.length > 0,
+  });
+
+  const createChatMutation = useMutation({
+    mutationFn: (users: string[]) => ChatService.createChat({ users }),
+    onSuccess: (data) => {
+      if (data && data.id) {
+        navigate(`/chat?chatId=${data.id}`);
+      } else {
+        setError('Ошибка: не удалось получить ID чата');
+      }
+    },
+    onError: (error: any) => {
+      setError(error.response?.data?.message || 'Ошибка при создании чата');
+    },
   });
 
   const handleSearch = (e: React.FormEvent) => {
@@ -40,6 +57,11 @@ export const SearchProfiles = () => {
 
   const handleProfileClick = (guid: string) => {
     navigate(`/profile/${guid}`);
+  };
+
+  const handleStartChat = (e: React.MouseEvent, guid: string) => {
+    e.stopPropagation();
+    createChatMutation.mutate([guid]);
   };
 
   return (
@@ -96,6 +118,15 @@ export const SearchProfiles = () => {
                     backgroundColor: 'action.hover',
                   },
                 }}
+                secondaryAction={
+                  <IconButton
+                    edge="end"
+                    onClick={(e) => handleStartChat(e, profile.guid)}
+                    disabled={createChatMutation.isPending}
+                  >
+                    <ChatIcon />
+                  </IconButton>
+                }
               >
                 <ListItemAvatar>
                   <Avatar />
