@@ -3,7 +3,8 @@ backend-codegen:
 	oapi-codegen --config=./backend/platform_service/oapi-codegen-configs/cv/server_cfg.yaml -o ./backend/platform_service/internal/router/cv/cv.gen.go ./api/cv.yaml
 	oapi-codegen --config=./backend/platform_service/oapi-codegen-configs/company/server_cfg.yaml -o ./backend/platform_service/internal/router/company/company.gen.go ./api/company.yaml
 	oapi-codegen --config=./backend/platform_service/oapi-codegen-configs/profile/server_cfg.yaml -o ./backend/platform_service/internal/router/profile/profile.gen.go ./api/profile.yaml
-
+	oapi-codegen --config=./backend/platform_service/oapi-codegen-configs/chat/server_cfg.yaml -o ./backend/platform_service/internal/router/chat/chat.gen.go ./api/chat.yaml
+	
 frontend-codegen:
 	cd ./frontend && npm run generate-api
 

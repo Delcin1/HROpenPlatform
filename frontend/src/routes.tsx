@@ -11,6 +11,7 @@ import { NewCompany } from './pages/NewCompany';
 import { CV } from './pages/CV';
 import { UserProfile } from './pages/UserProfile';
 import { SearchProfiles } from './pages/SearchProfiles';
+import { Chat } from './pages/Chat';
 
 export const AppRoutes = () => {
   return (
@@ -34,6 +35,7 @@ export const AppRoutes = () => {
         <Route path="cv" element={<CV />} />
         <Route path="profile/:guid" element={<UserProfile />} />
         <Route path="search" element={<SearchProfiles />} />
+        <Route path="chat" element={<Chat />} />
       </Route>
     </Routes>
   );

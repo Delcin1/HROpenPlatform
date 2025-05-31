@@ -3,6 +3,7 @@ import { OpenAPI as OpenAPIProfile } from './profile/core/OpenAPI';
 import { OpenAPI as OpenAPICompany } from './company/core/OpenAPI';
 import { OpenAPI as OpenAPICV } from './cv/core/OpenAPI';
 import { OpenAPI as OpenAPIAuth } from './auth/core/OpenAPI';
+import { OpenAPI as OpenAPIChat } from './chat/core/OpenAPI';
 
 const API_URL = 'http://localhost:8080';
 
@@ -18,6 +19,7 @@ configureOpenAPI(OpenAPIProfile);
 configureOpenAPI(OpenAPICompany);
 configureOpenAPI(OpenAPICV);
 configureOpenAPI(OpenAPIAuth);
+configureOpenAPI(OpenAPIChat);
 
 export const apiClient = axios.create({
   baseURL: API_URL,

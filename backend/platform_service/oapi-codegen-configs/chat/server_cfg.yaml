@@ -1,0 +1,7 @@
+package: chat
+output: ./backend/platform_service/internal/router/chat/chat.gen.go
+generate:
+  models: true
+  chi-server: true
+compatibility:
+  apply-chi-middleware-first-to-last: true

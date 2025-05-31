@@ -64,3 +64,14 @@ sql:
           go_type:
             import: "github.com/google/uuid"
             type: "UUID"
+  - engine: "postgresql"
+    queries: "./chat/chat.sql"
+    schema: "../../../migrations/"
+    gen:
+      go:
+        package: "chat"
+        out: "chat"
+        sql_package: "pgx/v4"
+        emit_interface: true
+        omit_unused_structs: true
+        emit_methods_with_db_argument: true

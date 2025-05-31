@@ -5,6 +5,7 @@ import (
 	"PlatformService/internal/models"
 	"PlatformService/internal/repository"
 	"PlatformService/internal/service/auth"
+	"PlatformService/internal/service/chat"
 	"PlatformService/internal/service/company"
 	"PlatformService/internal/service/cv"
 	"PlatformService/internal/service/profile"
@@ -52,12 +53,22 @@ type StorageService interface {
 	GetFile(ctx context.Context, filename string) (io.ReadCloser, error)
 }
 
+type ChatService interface {
+	CreateChat(ctx context.Context, userIDs []string) (*models.Chat, error)
+	GetUserChats(ctx context.Context, userID string) ([]models.ChatWithLastMessage, error)
+	GetChatMessages(ctx context.Context, chatID string, limit, offset int) ([]models.Message, error)
+	SendMessage(ctx context.Context, chatID, userID, text string) (*models.Message, error)
+	Subscribe(chatID string, conn *chat.WebSocketConnection)
+	Unsubscribe(chatID string, conn *chat.WebSocketConnection)
+}
+
 type Services struct {
 	Auth    AuthService
 	Profile ProfileService
 	Company CompanyService
 	CV      CVService
 	Storage StorageService
+	Chat    ChatService
 }
 
 func NewServices(cfg *config.Config, repo *repository.Repositories) (*Services, error) {
@@ -72,5 +83,6 @@ func NewServices(cfg *config.Config, repo *repository.Repositories) (*Services, 
 		Company: company.NewService(repo),
 		CV:      cv.NewService(repo),
 		Storage: storageService,
+		Chat:    chat.NewService(repo),
 	}, nil
 }
