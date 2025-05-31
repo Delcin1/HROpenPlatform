@@ -1,8 +1,10 @@
 package chat
 
 import (
+	"PlatformService/internal/config"
 	"PlatformService/internal/router/mw"
 	"PlatformService/internal/service"
+	"PlatformService/internal/service/auth"
 	"PlatformService/internal/service/chat"
 	"encoding/json"
 	"log"
@@ -24,6 +26,7 @@ var upgrader = websocket.Upgrader{
 type Server struct {
 	services *service.Services
 	log      *slog.Logger
+	cfg      *config.Config
 }
 
 // CreateChat implements ServerInterface.
@@ -181,13 +184,14 @@ func (s *Server) SendMessage(w http.ResponseWriter, r *http.Request, chatId stri
 }
 
 // HandleWebSocket implements ServerInterface.
-func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request, chatId string) {
+func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request, chatId string, params HandleWebSocketParams) {
 	ctx := r.Context()
-	userGUID := ctx.Value(mw.UserIDKey).(string)
-	if userGUID == "" {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
+	claims, err := auth.ValidateToken(params.Token, s.cfg.AccessTokenSecret)
+			if err != nil {
+				s.log.ErrorContext(ctx, "authMiddleware.ValidateToken failed to validate token", "error", err)
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -197,7 +201,7 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request, chatId 
 	defer conn.Close()
 
 	wsConn := &chat.WebSocketConnection{
-		UserID: userGUID,
+		UserID: claims.UserGUID,
 		Send:   make(chan []byte, 256),
 	}
 
@@ -217,7 +221,7 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request, chatId 
 				break
 			}
 
-			_, err = s.services.Chat.SendMessage(r.Context(), chatId, userGUID, string(message))
+			_, err = s.services.Chat.SendMessage(r.Context(), chatId, claims.UserGUID, string(message))
 			if err != nil {
 				log.Printf("Error sending message: %v", err)
 			}
@@ -239,9 +243,10 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request, chatId 
 	}
 }
 
-func NewServer(services *service.Services, log *slog.Logger) ServerInterface {
+func NewServer(services *service.Services, log *slog.Logger, cfg *config.Config) ServerInterface {
 	return &Server{
 		services: services,
 		log:      log,
+		cfg:      cfg,
 	}
 }

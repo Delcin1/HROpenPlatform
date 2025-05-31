@@ -14,30 +14,36 @@ export const useWebSocket = (chatId: string | null) => {
     }
 
     // Получаем токен из localStorage
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('access_token');
+    console.log('WebSocket: Checking token in localStorage:', token ? 'Token exists' : 'No token found');
+    
     if (!token) {
-      console.error('No auth token found in localStorage');
+      console.error('WebSocket: No auth token found in localStorage. Please login first.');
       return;
     }
 
-    // Создаем WebSocket с токеном в URL
-    const ws = new WebSocket(`${WS_URL}/api/v1/chat/${chatId}/ws?token=${token}`);
+    // Создаем WebSocket соединение с токеном в URL
+    const wsUrl = `${WS_URL}/api/v1/chat/${chatId}/ws?token=${encodeURIComponent(token)}`;
+    console.log('WebSocket: Creating WebSocket connection to:', wsUrl);
+    
+    const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
     ws.onopen = () => {
-      console.log('WebSocket connected successfully');
+      console.log('WebSocket: Connected successfully');
     };
 
     ws.onclose = (event) => {
-      console.log('WebSocket disconnected:', event.code, event.reason);
+      console.log('WebSocket: Disconnected:', event.code, event.reason);
     };
 
     ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
+      console.error('WebSocket: Error:', error);
     };
 
     return () => {
       if (wsRef.current?.readyState === WebSocket.OPEN) {
+        console.log('WebSocket: Closing connection');
         wsRef.current.close();
       }
     };
@@ -45,26 +51,31 @@ export const useWebSocket = (chatId: string | null) => {
 
   const sendMessage = (text: string) => {
     if (!wsRef.current) {
-      console.error('WebSocket is not initialized');
+      console.error('WebSocket: Cannot send message - connection not initialized');
       return;
     }
 
     if (wsRef.current.readyState === WebSocket.OPEN) {
+      console.log('WebSocket: Sending message:', text);
       wsRef.current.send(text);
     } else {
-      console.error('WebSocket is not connected');
+      console.error('WebSocket: Cannot send message - connection not open');
     }
   };
 
   const onMessage = (callback: (data: any) => void) => {
-    if (!wsRef.current) return;
+    if (!wsRef.current) {
+      console.error('WebSocket: Cannot set message handler - connection not initialized');
+      return;
+    }
 
     const handler = (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
+        console.log('WebSocket: Received message:', data);
         callback(data);
       } catch (error) {
-        console.error('Error parsing message:', error);
+        console.error('WebSocket: Error parsing message:', error);
       }
     };
 

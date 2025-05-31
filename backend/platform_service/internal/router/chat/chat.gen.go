@@ -12,6 +12,21 @@ import (
 	"github.com/oapi-codegen/runtime"
 )
 
+// Defines values for HandleWebSocketParamsConnection.
+const (
+	Upgrade HandleWebSocketParamsConnection = "upgrade"
+)
+
+// Defines values for HandleWebSocketParamsUpgrade.
+const (
+	Websocket HandleWebSocketParamsUpgrade = "websocket"
+)
+
+// Defines values for HandleWebSocketParamsSecWebSocketVersion.
+const (
+	N13 HandleWebSocketParamsSecWebSocketVersion = "13"
+)
+
 // Chat defines model for Chat.
 type Chat struct {
 	CreatedAt time.Time `json:"created_at"`
@@ -52,6 +67,24 @@ type GetChatMessagesParams struct {
 	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
+// HandleWebSocketParams defines parameters for HandleWebSocket.
+type HandleWebSocketParams struct {
+	Token               string                                   `form:"token" json:"token"`
+	Connection          HandleWebSocketParamsConnection          `json:"Connection"`
+	Upgrade             HandleWebSocketParamsUpgrade             `json:"Upgrade"`
+	SecWebSocketVersion HandleWebSocketParamsSecWebSocketVersion `json:"Sec-WebSocket-Version"`
+	SecWebSocketKey     string                                   `json:"Sec-WebSocket-Key"`
+}
+
+// HandleWebSocketParamsConnection defines parameters for HandleWebSocket.
+type HandleWebSocketParamsConnection string
+
+// HandleWebSocketParamsUpgrade defines parameters for HandleWebSocket.
+type HandleWebSocketParamsUpgrade string
+
+// HandleWebSocketParamsSecWebSocketVersion defines parameters for HandleWebSocket.
+type HandleWebSocketParamsSecWebSocketVersion string
+
 // CreateChatJSONRequestBody defines body for CreateChat for application/json ContentType.
 type CreateChatJSONRequestBody = CreateChatRequest
 
@@ -74,7 +107,7 @@ type ServerInterface interface {
 	SendMessage(w http.ResponseWriter, r *http.Request, chatId string)
 	// WebSocket connection for real-time chat
 	// (GET /api/v1/chat/{chat_id}/ws)
-	HandleWebSocket(w http.ResponseWriter, r *http.Request, chatId string)
+	HandleWebSocket(w http.ResponseWriter, r *http.Request, chatId string, params HandleWebSocketParams)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -107,7 +140,7 @@ func (_ Unimplemented) SendMessage(w http.ResponseWriter, r *http.Request, chatI
 
 // WebSocket connection for real-time chat
 // (GET /api/v1/chat/{chat_id}/ws)
-func (_ Unimplemented) HandleWebSocket(w http.ResponseWriter, r *http.Request, chatId string) {
+func (_ Unimplemented) HandleWebSocket(w http.ResponseWriter, r *http.Request, chatId string, params HandleWebSocketParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -231,8 +264,120 @@ func (siw *ServerInterfaceWrapper) HandleWebSocket(w http.ResponseWriter, r *htt
 		return
 	}
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params HandleWebSocketParams
+
+	// ------------- Required query parameter "token" -------------
+
+	if paramValue := r.URL.Query().Get("token"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "token"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "token", r.URL.Query(), &params.Token)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "token", Err: err})
+		return
+	}
+
+	headers := r.Header
+
+	// ------------- Required header parameter "Connection" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Connection")]; found {
+		var Connection HandleWebSocketParamsConnection
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Connection", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Connection", valueList[0], &Connection, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Connection", Err: err})
+			return
+		}
+
+		params.Connection = Connection
+
+	} else {
+		err := fmt.Errorf("Header parameter Connection is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Connection", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "Upgrade" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Upgrade")]; found {
+		var Upgrade HandleWebSocketParamsUpgrade
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Upgrade", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Upgrade", valueList[0], &Upgrade, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Upgrade", Err: err})
+			return
+		}
+
+		params.Upgrade = Upgrade
+
+	} else {
+		err := fmt.Errorf("Header parameter Upgrade is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Upgrade", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "Sec-WebSocket-Version" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Sec-WebSocket-Version")]; found {
+		var SecWebSocketVersion HandleWebSocketParamsSecWebSocketVersion
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Sec-WebSocket-Version", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Sec-WebSocket-Version", valueList[0], &SecWebSocketVersion, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Sec-WebSocket-Version", Err: err})
+			return
+		}
+
+		params.SecWebSocketVersion = SecWebSocketVersion
+
+	} else {
+		err := fmt.Errorf("Header parameter Sec-WebSocket-Version is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Sec-WebSocket-Version", Err: err})
+		return
+	}
+
+	// ------------- Required header parameter "Sec-WebSocket-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Sec-WebSocket-Key")]; found {
+		var SecWebSocketKey string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Sec-WebSocket-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Sec-WebSocket-Key", valueList[0], &SecWebSocketKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Sec-WebSocket-Key", Err: err})
+			return
+		}
+
+		params.SecWebSocketKey = SecWebSocketKey
+
+	} else {
+		err := fmt.Errorf("Header parameter Sec-WebSocket-Key is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Sec-WebSocket-Key", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.HandleWebSocket(w, r, chatId)
+		siw.Handler.HandleWebSocket(w, r, chatId, params)
 	}))
 
 	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {

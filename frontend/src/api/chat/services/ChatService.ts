@@ -105,17 +105,36 @@ export class ChatService {
     /**
      * WebSocket connection for real-time chat
      * @param chatId
+     * @param token
+     * @param connection
+     * @param upgrade
+     * @param secWebSocketVersion
+     * @param secWebSocketKey
      * @returns void
      * @throws ApiError
      */
     public static handleWebSocket(
         chatId: string,
+        token: string,
+        connection: 'upgrade',
+        upgrade: 'websocket',
+        secWebSocketVersion: 13,
+        secWebSocketKey: string,
     ): CancelablePromise<void> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1/chat/{chat_id}/ws',
             path: {
                 'chat_id': chatId,
+            },
+            headers: {
+                'Connection': connection,
+                'Upgrade': upgrade,
+                'Sec-WebSocket-Version': secWebSocketVersion,
+                'Sec-WebSocket-Key': secWebSocketKey,
+            },
+            query: {
+                'token': token,
             },
             errors: {
                 401: `Unauthorized`,

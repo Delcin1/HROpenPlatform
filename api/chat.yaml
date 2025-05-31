@@ -131,9 +131,49 @@ paths:
           required: true
           schema:
             type: string
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: Connection
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [upgrade]
+        - name: Upgrade
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [websocket]
+        - name: Sec-WebSocket-Version
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [13]
+        - name: Sec-WebSocket-Key
+          in: header
+          required: true
+          schema:
+            type: string
       responses:
         '101':
           description: Switching Protocols
+          headers:
+            Connection:
+              schema:
+                type: string
+                enum: [upgrade]
+            Upgrade:
+              schema:
+                type: string
+                enum: [websocket]
+            Sec-WebSocket-Accept:
+              schema:
+                type: string
         '401':
           description: Unauthorized
         '404':

@@ -110,7 +110,6 @@ export const Chat = () => {
 
   const { sendMessage, onMessage } = useWebSocket(selectedChat);
 
-  // Отслеживаем состояние WebSocket соединения
   useEffect(() => {
     if (!selectedChat) {
       setIsWsConnected(false);
@@ -118,39 +117,37 @@ export const Chat = () => {
       return;
     }
 
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('access_token');
+    console.log('Chat: Checking token in localStorage:', token ? 'Token exists' : 'No token found');
+    
     if (!token) {
-      setWsError('Требуется авторизация');
+      console.error('Chat: No auth token found in localStorage. Please login first.');
+      setWsError('Требуется авторизация. Пожалуйста, войдите в систему.');
       setIsWsConnected(false);
       return;
     }
 
-    const ws = new WebSocket(`ws://localhost:8080/api/v1/chat/${selectedChat}/ws?token=${token}`);
-    
-    ws.onopen = () => {
-      console.log('WebSocket connected');
+    // Подписываемся на сообщения
+    const unsubscribe = onMessage?.((message: Message) => {
+      setMessages((prev) => {
+        if (!Array.isArray(prev)) return [message];
+        if (prev.some(m => m.id === message.id)) {
+          return prev;
+        }
+        return [message, ...prev];
+      });
       setIsWsConnected(true);
       setWsError(null);
-    };
-
-    ws.onclose = (event) => {
-      console.log('WebSocket disconnected:', event.code, event.reason);
-      setIsWsConnected(false);
-      setWsError('Соединение потеряно. Попытка переподключения...');
-    };
-
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      setWsError('Ошибка соединения');
-      setIsWsConnected(false);
-    };
+    });
 
     return () => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.close();
+      if (unsubscribe) {
+        unsubscribe();
       }
+      setIsWsConnected(false);
+      setWsError(null);
     };
-  }, [selectedChat]);
+  }, [selectedChat, onMessage]);
 
   useEffect(() => {
     if (chatMessages) {
@@ -158,24 +155,9 @@ export const Chat = () => {
     }
   }, [chatMessages]);
 
-  useEffect(() => {
-    if (selectedChat) {
-      const unsubscribe = onMessage((message: Message) => {
-        setMessages((prev) => {
-          if (!Array.isArray(prev)) return [message];
-          if (prev.some(m => m.id === message.id)) {
-            return prev;
-          }
-          return [message, ...prev];
-        });
-      });
-      return unsubscribe;
-    }
-  }, [selectedChat, onMessage]);
-
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (messageText.trim() && selectedChat) {
+    if (messageText.trim() && selectedChat && sendMessage) {
       try {
         sendMessage(messageText.trim());
         setMessageText('');
