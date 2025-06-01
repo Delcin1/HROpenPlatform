@@ -175,10 +175,30 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request, callId 
 			room.mutex.Unlock()
 		}
 		roomsMutex.Unlock()
+		close(wsConn.Send)
 	}()
 
 	var wg sync.WaitGroup
-	wg.Add(1)
+	wg.Add(2) // Теперь у нас 2 горутины
+
+	// Горутина для отправки сообщений
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case message, ok := <-wsConn.Send:
+				if !ok {
+					s.log.InfoContext(ctx, "WebSocket send channel closed")
+					return
+				}
+
+				if err := conn.WriteMessage(websocket.TextMessage, message); err != nil {
+					s.log.ErrorContext(ctx, "Error writing WebSocket message", "error", err)
+					return
+				}
+			}
+		}
+	}()
 
 	// Горутина для чтения сообщений
 	go func() {
@@ -256,46 +276,68 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request, callId 
 		}
 	}()
 
-	// Горутина для отправки сообщений
-	for {
-		select {
-		case message, ok := <-wsConn.Send:
-			if !ok {
-				s.log.InfoContext(ctx, "WebSocket send channel closed")
-				return
-			}
-
-			if err := conn.WriteMessage(websocket.TextMessage, message); err != nil {
-				s.log.ErrorContext(ctx, "Error writing WebSocket message", "error", err)
-				return
-			}
-		}
-	}
+	// Ждем завершения всех горутин
+	wg.Wait()
 }
 
 func (s *Server) broadcastToRoom(callID string, senderID string, message []byte) {
+	// Ограничиваем превью сообщения для логирования
+	messagePreview := string(message)
+	if len(messagePreview) > 100 {
+		messagePreview = messagePreview[:100] + "..."
+	}
+	s.log.Info("broadcastToRoom called", "call_id", callID, "sender_id", senderID, "message_preview", messagePreview)
+
 	roomsMutex.RLock()
 	room, exists := callRooms[callID]
 	roomsMutex.RUnlock()
 
 	if !exists {
+		s.log.Warn("Room not found for broadcast", "call_id", callID)
 		return
 	}
 
 	room.mutex.RLock()
-	defer room.mutex.RUnlock()
-
+	connections := make(map[string]*WebSocketConnection)
 	for userID, conn := range room.Connections {
+		connections[userID] = conn
+	}
+	room.mutex.RUnlock()
+
+	s.log.Info("Broadcasting message to room", "call_id", callID, "sender_id", senderID, "total_connections", len(connections))
+
+	var toRemove []string
+	broadcastCount := 0
+	for userID, conn := range connections {
 		if senderID != "" && userID == senderID {
+			s.log.Debug("Skipping sender", "user_id", userID)
 			continue // Не отправляем отправителю
 		}
 
+		s.log.Debug("Attempting to send message to user", "user_id", userID)
 		select {
 		case conn.Send <- message:
+			s.log.Info("Message successfully sent to user", "user_id", userID)
+			broadcastCount++
 		default:
-			close(conn.Send)
-			delete(room.Connections, userID)
+			s.log.Error("Failed to send message to user - channel full or closed", "user_id", userID)
+			toRemove = append(toRemove, userID)
 		}
+	}
+
+	s.log.Info("Broadcast completed", "call_id", callID, "sent_to_count", broadcastCount, "failed_count", len(toRemove))
+
+	// Удаляем недоступные соединения
+	if len(toRemove) > 0 {
+		room.mutex.Lock()
+		for _, userID := range toRemove {
+			if conn, exists := room.Connections[userID]; exists {
+				s.log.Warn("Removing failed connection", "user_id", userID)
+				close(conn.Send)
+				delete(room.Connections, userID)
+			}
+		}
+		room.mutex.Unlock()
 	}
 }
 

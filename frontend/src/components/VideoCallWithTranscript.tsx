@@ -28,6 +28,8 @@ interface VideoCallWithTranscriptProps {
   callId: string;
   onEndCall: () => void;
   isIncoming?: boolean;
+  shouldStartCall?: boolean;
+  showUI?: boolean;
 }
 
 interface TranscriptEntry {
@@ -40,8 +42,10 @@ export const VideoCallWithTranscript: React.FC<VideoCallWithTranscriptProps> = (
   callId,
   onEndCall,
   isIncoming = false,
+  shouldStartCall = true,
+  showUI = true,
 }) => {
-  const [ws, setWs] = useState<WebSocket | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [isCallActive, setIsCallActive] = useState(true);
   const [audioEnabled, setAudioEnabled] = useState(true);
@@ -63,13 +67,47 @@ export const VideoCallWithTranscript: React.FC<VideoCallWithTranscriptProps> = (
     handleSignal,
   } = useWebRTC((signal) => {
     // Отправляем WebRTC сигналы через WebSocket
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({
+    console.log('🔄 Sending WebRTC signal:', signal.type, signal);
+    
+    // Используем ref для получения актуального WebSocket
+    const currentWs = wsRef.current;
+    console.log('📡 WebSocket state check:', {
+      ws: !!currentWs,
+      readyState: currentWs?.readyState,
+      OPEN: WebSocket.OPEN,
+      isOpen: currentWs?.readyState === WebSocket.OPEN
+    });
+    
+    if (currentWs && currentWs.readyState === WebSocket.OPEN) {
+      const message = JSON.stringify({
         type: 'webrtc-signal',
         signal: signal,
-      }));
+      });
+      console.log('📤 Sending WebSocket message:', message);
+      currentWs.send(message);
+    } else {
+      console.error('❌ Cannot send WebRTC signal - WebSocket not ready:', {
+        ws: !!currentWs,
+        readyState: currentWs?.readyState,
+        OPEN: WebSocket.OPEN
+      });
+      
+      // Попытка отложенной отправки
+      setTimeout(() => {
+        console.log('🔄 Retry sending WebRTC signal after delay...');
+        const retryWs = wsRef.current;
+        if (retryWs && retryWs.readyState === WebSocket.OPEN) {
+          console.log('✅ Retry successful, sending signal');
+          retryWs.send(JSON.stringify({
+            type: 'webrtc-signal',
+            signal: signal,
+          }));
+        } else {
+          console.error('❌ Retry failed - WebSocket still not ready');
+        }
+      }, 100);
     }
-  });
+  }, isIncoming);
 
   // Хук для распознавания речи
   const {
@@ -79,8 +117,8 @@ export const VideoCallWithTranscript: React.FC<VideoCallWithTranscriptProps> = (
     stopListening,
   } = useSpeechRecognition((text) => {
     // Отправляем транскрипт через WebSocket
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
         type: 'speech-transcript',
         text: text,
         timestamp: new Date().toISOString(),
@@ -90,76 +128,117 @@ export const VideoCallWithTranscript: React.FC<VideoCallWithTranscriptProps> = (
 
   // Подключение к WebSocket
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    if (!token) {
-      setError('Токен авторизации не найден');
-      return;
-    }
+    let websocket: WebSocket | null = null;
+    let isMounted = true;
+    let connectionAttempted = false; // Флаг для предотвращения повторных подключений
 
-    console.log('Setting up WebSocket connection for callId:', callId);
-    
-    // Используем localhost:8080 для development, так как бэкенд запущен на этом порту
-    const websocketUrl = `ws://localhost:8080/api/v1/call/${callId}/ws?token=${token}`;
-
-    const websocket = new WebSocket(websocketUrl);
-
-    websocket.onopen = () => {
-      console.log('WebSocket connected');
-      setWs(websocket);
-      setIsWebSocketConnected(true);
-      setError(null);
-    };
-
-    websocket.onmessage = async (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        console.log('Received WebSocket message:', data);
-
-        switch (data.type) {
-          case 'webrtc-signal':
-            // Обрабатываем WebRTC сигналы
-            await handleSignal(data.signal);
-            break;
-
-          case 'transcript':
-            // Добавляем новый транскрипт
-            setTranscript(prev => [...prev, {
-              user_id: data.user_id,
-              text: data.text,
-              timestamp: data.timestamp,
-            }]);
-            break;
-
-          case 'call-ended':
-            // Звонок завершен
-            setIsCallActive(false);
-            onEndCall();
-            break;
-        }
-      } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
+    const setupWebSocket = async () => {
+      // Предотвращаем повторные подключения в React StrictMode
+      if (connectionAttempted) {
+        console.log('WebSocket connection already attempted, skipping...');
+        return;
       }
+      connectionAttempted = true;
+
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        setError('Токен авторизации не найден');
+        return;
+      }
+
+      if (!isMounted) return; // Предотвращаем настройку если компонент уже размонтирован
+
+      console.log('Setting up WebSocket connection for callId:', callId);
+      
+      // Используем localhost:8080 для development, так как бэкенд запущен на этом порту
+      const websocketUrl = `ws://localhost:8080/api/v1/call/${callId}/ws?token=${token}`;
+
+      websocket = new WebSocket(websocketUrl);
+
+      websocket.onopen = () => {
+        if (!isMounted) {
+          websocket?.close();
+          return;
+        }
+        console.log('WebSocket connected');
+        wsRef.current = websocket;
+        setIsWebSocketConnected(true);
+        setError(null);
+      };
+
+      websocket.onmessage = async (event) => {
+        if (!isMounted) return;
+        
+        try {
+          const data = JSON.parse(event.data);
+          console.log('Received WebSocket message:', data);
+
+          switch (data.type) {
+            case 'webrtc-signal':
+              // Обрабатываем WebRTC сигналы
+              console.log('📥 Received WebRTC signal:', data.signal.type, data.signal);
+              try {
+                await handleSignal(data.signal);
+                console.log('✅ WebRTC signal processed successfully');
+              } catch (error) {
+                console.error('❌ Error processing WebRTC signal:', error);
+              }
+              break;
+
+            case 'transcript':
+              // Добавляем новый транскрипт
+              setTranscript(prev => [...prev, {
+                user_id: data.user_id,
+                text: data.text,
+                timestamp: data.timestamp,
+              }]);
+              break;
+
+            case 'call-ended':
+              // Звонок завершен
+              if (isMounted) {
+                setIsCallActive(false);
+                onEndCall();
+              }
+              break;
+          }
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error);
+        }
+      };
+
+      websocket.onclose = (event) => {
+        console.log('WebSocket disconnected', { code: event.code, reason: event.reason });
+        if (isMounted) {
+          wsRef.current = null;
+          setIsWebSocketConnected(false);
+          isInitializedRef.current = false; // Сбрасываем инициализацию при закрытии соединения
+        }
+      };
+
+      websocket.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        if (isMounted) {
+          setError('Ошибка подключения WebSocket');
+          setIsWebSocketConnected(false);
+          isInitializedRef.current = false; // Сбрасываем инициализацию при ошибке
+        }
+      };
     };
 
-    websocket.onclose = (event) => {
-      console.log('WebSocket disconnected', { code: event.code, reason: event.reason });
-      setWs(null);
-      setIsWebSocketConnected(false);
-      isInitializedRef.current = false; // Сбрасываем инициализацию при закрытии соединения
-    };
-
-    websocket.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      setError('Ошибка подключения WebSocket');
-      setIsWebSocketConnected(false);
-      isInitializedRef.current = false; // Сбрасываем инициализацию при ошибке
-    };
+    setupWebSocket();
 
     return () => {
       console.log('Cleaning up WebSocket connection');
-      websocket.close();
+      isMounted = false;
+      isInitializedRef.current = false;
+      if (websocket) {
+        if (websocket.readyState === WebSocket.OPEN || websocket.readyState === WebSocket.CONNECTING) {
+          websocket.close();
+        }
+      }
     };
-  }, [callId]);
+  }, [callId]); // Только callId в зависимостях
 
   // Автоскролл транскрипта
   useEffect(() => {
@@ -179,25 +258,22 @@ export const VideoCallWithTranscript: React.FC<VideoCallWithTranscriptProps> = (
         console.log('Initializing call...', { 
           isWebSocketConnected, 
           isIncoming, 
+          shouldStartCall,
           isInitialized: isInitializedRef.current 
         });
         
-        if (isWebSocketConnected) {
+        if (isWebSocketConnected && shouldStartCall) {
           isInitializedRef.current = true;
           
-          // Для исходящих звонков сначала запускаем WebRTC
-          if (!isIncoming) {
-            console.log('Starting WebRTC call...');
-            await startCall();
-            // Запускаем распознавание речи после успешного запуска WebRTC
-            console.log('Starting speech recognition after WebRTC...');
-            setTimeout(() => {
-              startListening();
-            }, 2000); // Увеличиваем задержку до 2 секунд
-          } else {
-            // Для входящих звонков сразу запускаем распознавание речи
+          // Запускаем WebRTC для любого типа звонка
+          console.log('Starting WebRTC call...');
+          await startCall();
+          
+          // Запускаем распознавание речи после успешного запуска WebRTC
+          console.log('Starting speech recognition after WebRTC...');
+          setTimeout(() => {
             startListening();
-          }
+          }, 2000); // Увеличиваем задержку до 2 секунд
         }
       } catch (error) {
         console.error('Error initializing call:', error);
@@ -206,7 +282,7 @@ export const VideoCallWithTranscript: React.FC<VideoCallWithTranscriptProps> = (
       }
     };
 
-    if (isWebSocketConnected && !isInitializedRef.current) {
+    if (isWebSocketConnected && shouldStartCall && !isInitializedRef.current) {
       initializeCall();
     }
 
@@ -214,12 +290,12 @@ export const VideoCallWithTranscript: React.FC<VideoCallWithTranscriptProps> = (
       // Сбрасываем инициализацию при размонтировании
       isInitializedRef.current = false;
     };
-  }, [isWebSocketConnected, isIncoming]); // Убираем функции из зависимостей
+  }, [isWebSocketConnected, isIncoming, shouldStartCall]);
 
   const handleEndCall = useCallback(() => {
     // Отправляем сигнал завершения звонка
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
         type: 'call-end',
       }));
     }
@@ -229,7 +305,7 @@ export const VideoCallWithTranscript: React.FC<VideoCallWithTranscriptProps> = (
     setIsCallActive(false);
     isInitializedRef.current = false; // Сбрасываем флаг инициализации
     onEndCall();
-  }, [ws, endCall, stopListening, onEndCall]);
+  }, [wsRef, endCall, stopListening, onEndCall]);
 
   const handleToggleAudio = useCallback(() => {
     toggleAudio();
@@ -271,6 +347,10 @@ export const VideoCallWithTranscript: React.FC<VideoCallWithTranscriptProps> = (
         </DialogActions>
       </Dialog>
     );
+  }
+
+  if (!showUI) {
+    return null;
   }
 
   return (

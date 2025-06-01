@@ -69,20 +69,59 @@ export const useSpeechRecognition = (
         console.error('Speech recognition error:', event.error);
         setIsListening(false);
         
-        // Автоматически перезапускаем при некоторых ошибках, но не при aborted
-        if (event.error === 'no-speech' || event.error === 'audio-capture') {
-          console.log('Attempting to restart speech recognition after error:', event.error);
-          setTimeout(() => {
-            if (recognitionRef.current) {
-              try {
-                recognitionRef.current.start();
-              } catch (e) {
-                console.error('Failed to restart recognition:', e);
+        // Более интеллектуальная обработка ошибок
+        switch (event.error) {
+          case 'no-speech':
+            console.log('No speech detected, continuing...');
+            // Не перезапускаем - это нормальная ситуация
+            break;
+            
+          case 'audio-capture':
+            console.log('Audio capture error, retrying in 2 seconds...');
+            setTimeout(() => {
+              if (recognitionRef.current && !isListening) {
+                try {
+                  recognitionRef.current.start();
+                } catch (e) {
+                  console.error('Failed to restart after audio-capture error:', e);
+                }
               }
-            }
-          }, 1000);
-        } else if (event.error === 'aborted') {
-          console.log('Speech recognition aborted - likely due to microphone conflict');
+            }, 2000);
+            break;
+            
+          case 'network':
+            console.log('Network error in speech recognition, retrying in 5 seconds...');
+            setTimeout(() => {
+              if (recognitionRef.current && !isListening) {
+                try {
+                  recognitionRef.current.start();
+                } catch (e) {
+                  console.error('Failed to restart after network error:', e);
+                }
+              }
+            }, 5000);
+            break;
+            
+          case 'aborted':
+            console.log('Speech recognition aborted - likely due to microphone conflict');
+            // Не перезапускаем при aborted
+            break;
+            
+          case 'not-allowed':
+            console.error('Microphone access not allowed');
+            break;
+            
+          default:
+            console.log(`Speech recognition error: ${event.error}, retrying in 3 seconds...`);
+            setTimeout(() => {
+              if (recognitionRef.current && !isListening) {
+                try {
+                  recognitionRef.current.start();
+                } catch (e) {
+                  console.error('Failed to restart after unknown error:', e);
+                }
+              }
+            }, 3000);
         }
       };
 

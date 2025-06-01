@@ -270,6 +270,8 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request, chatId 
 	s.services.Chat.Subscribe(chatId, wsConn)
 	defer s.services.Chat.Unsubscribe(chatId, wsConn)
 
+	s.log.Info("Chat WebSocket connection established", "user_id", claims.UserGUID, "chat_id", chatId)
+
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -278,17 +280,22 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request, chatId 
 			_, message, err := conn.ReadMessage()
 			if err != nil {
 				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-					log.Printf("Error reading message: %v", err)
+					s.log.Error("Error reading WebSocket message", "error", err)
 				}
+				s.log.Info("Chat WebSocket connection closed", "user_id", claims.UserGUID, "chat_id", chatId)
 				break
 			}
+
+			s.log.Info("Chat WebSocket message received", "user_id", claims.UserGUID, "chat_id", chatId, "message", string(message))
 
 			// Проверяем, является ли сообщение сигналом видеозвонка
 			var signal map[string]interface{}
 			if err := json.Unmarshal(message, &signal); err == nil {
 				if signalType, ok := signal["type"].(string); ok {
+					s.log.Info("Processing chat signal", "type", signalType, "user_id", claims.UserGUID, "chat_id", chatId)
 					// Обрабатываем уведомления о видеозвонках
 					if signalType == "incoming-video-call" || signalType == "call-accepted" || signalType == "call-declined" {
+						s.log.Info("Broadcasting video call signal", "type", signalType, "from_user", claims.UserGUID, "chat_id", chatId)
 						// Рассылаем уведомление всем участникам чата (кроме отправителя)
 						s.services.Chat.BroadcastMessage(chatId, message, claims.UserGUID)
 						continue
@@ -299,7 +306,7 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request, chatId 
 			// Если это не сигнал видеозвонка, обрабатываем как обычное сообщение
 			_, err = s.services.Chat.SendMessage(r.Context(), chatId, claims.UserGUID, string(message))
 			if err != nil {
-				log.Printf("Error sending message: %v", err)
+				s.log.Error("Error sending chat message", "error", err)
 			}
 		}
 	}()
@@ -308,11 +315,13 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request, chatId 
 		select {
 		case message, ok := <-wsConn.Send:
 			if !ok {
+				s.log.Info("Chat WebSocket send channel closed", "user_id", claims.UserGUID, "chat_id", chatId)
 				return
 			}
 
+			s.log.Info("Sending message to chat WebSocket", "user_id", claims.UserGUID, "chat_id", chatId, "message", string(message))
 			if err := conn.WriteMessage(websocket.TextMessage, message); err != nil {
-				log.Printf("Error writing message: %v", err)
+				s.log.Error("Error writing WebSocket message", "error", err)
 				return
 			}
 		}

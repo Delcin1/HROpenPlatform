@@ -42,6 +42,7 @@ export const Chat = () => {
     callId: string;
     callerName: string;
   } | null>(null);
+  const [isIncomingCall, setIsIncomingCall] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { sendMessage, onMessage } = useWebSocket(selectedChat);
@@ -139,12 +140,16 @@ export const Chat = () => {
             callId: parsedMessage.callId,
             callerName: parsedMessage.callerName,
           });
+          // Сразу устанавливаем activeCallId для подключения к WebSocket
+          setActiveCallId(parsedMessage.callId);
           return;
         }
 
         // Обрабатываем отклонение звонка
         if (parsedMessage.type === 'call-declined') {
           setIncomingCall(null);
+          setActiveCallId(null);
+          setIsVideoCallActive(false);
           alert('Звонок был отклонен');
           return;
         }
@@ -152,8 +157,8 @@ export const Chat = () => {
         // Обрабатываем принятие звонка
         if (parsedMessage.type === 'call-accepted') {
           setIncomingCall(null);
-          setActiveCallId(parsedMessage.callId);
-          setIsVideoCallActive(true);
+          // Не меняем состояние звонка для инициатора
+          // activeCallId уже должен быть установлен
           return;
         }
 
@@ -247,6 +252,7 @@ export const Chat = () => {
 
       setActiveCallId(call.id);
       setIsVideoCallActive(true);
+      setIsIncomingCall(false);
     } catch (err) {
       console.error('Error starting video call:', err);
       alert('Ошибка при создании видеозвонка');
@@ -269,8 +275,9 @@ export const Chat = () => {
       }));
     }
 
-    setActiveCallId(incomingCall.callId);
+    // activeCallId уже установлен при получении уведомления
     setIsVideoCallActive(true);
+    setIsIncomingCall(true);
     setIncomingCall(null);
   };
 
@@ -286,6 +293,7 @@ export const Chat = () => {
     }
 
     setIncomingCall(null);
+    setActiveCallId(null);
   };
 
   const handleChatSelect = (chatId: string) => {
@@ -535,11 +543,14 @@ export const Chat = () => {
         </Box>
       </Container>
 
-      {/* Компонент видеозвонка */}
-      {isVideoCallActive && activeCallId && (
+      {/* Компонент видеозвонка - всегда рендерим если есть activeCallId */}
+      {activeCallId && (
         <VideoCallWithTranscript
           callId={activeCallId}
           onEndCall={handleEndVideoCall}
+          isIncoming={!!incomingCall || isIncomingCall}
+          shouldStartCall={isVideoCallActive}
+          showUI={isVideoCallActive}
         />
       )}
     </>

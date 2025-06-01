@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"sync"
 
 	"github.com/google/uuid"
@@ -301,17 +302,36 @@ func (s *service) BroadcastMessage(chatID string, message []byte, excludeUserID 
 	s.clientsMux.RLock()
 	defer s.clientsMux.RUnlock()
 
+	// Добавляем логирование для отладки
+	messagePreview := string(message)
+	if len(messagePreview) > 100 {
+		messagePreview = messagePreview[:100] + "..."
+	}
+
+	log.Printf("BroadcastMessage called: chatID=%s, excludeUserID=%s, message=%s", chatID, excludeUserID, messagePreview)
+
 	if clients, ok := s.clients[chatID]; ok {
+		log.Printf("Found %d clients in chat %s", len(clients), chatID)
+		sentCount := 0
 		for client := range clients {
 			// Исключаем отправителя из рассылки
 			if client.UserID != excludeUserID {
+				log.Printf("Sending message to client %s", client.UserID)
 				select {
 				case client.Send <- message:
+					sentCount++
+					log.Printf("Message successfully sent to client %s", client.UserID)
 				default:
+					log.Printf("Failed to send message to client %s - channel full", client.UserID)
 					// Skip if client's buffer is full
 				}
+			} else {
+				log.Printf("Skipping sender %s", client.UserID)
 			}
 		}
+		log.Printf("BroadcastMessage completed: sent to %d clients", sentCount)
+	} else {
+		log.Printf("No clients found for chat %s", chatID)
 	}
 }
 
