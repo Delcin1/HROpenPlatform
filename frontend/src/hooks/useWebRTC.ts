@@ -9,6 +9,7 @@ interface WebRTCHook {
   toggleAudio: () => void;
   toggleVideo: () => void;
   handleSignal: (signal: any) => Promise<void>;
+  getAudioStream: () => MediaStream | null;
 }
 
 export const useWebRTC = (onSignal: (signal: any) => void, isIncoming: boolean = false): WebRTCHook => {
@@ -19,6 +20,7 @@ export const useWebRTC = (onSignal: (signal: any) => void, isIncoming: boolean =
   const localStreamRef = useRef<MediaStream | null>(null);
   const iceCandidateBufferRef = useRef<RTCIceCandidate[]>([]);
   const remoteDescriptionSetRef = useRef<boolean>(false);
+  const [pendingOffer, setPendingOffer] = useState<RTCSessionDescription | null>(null);
 
   useEffect(() => {
     return () => {
@@ -108,7 +110,23 @@ export const useWebRTC = (onSignal: (signal: any) => void, isIncoming: boolean =
           sdp: offer,
         });
       } else {
-        console.log('Incoming call - waiting for offer...');
+        console.log('Incoming call - checking for pending offer...');
+        // Если есть отложенный offer, обрабатываем его сейчас
+        if (pendingOffer) {
+          console.log('Processing pending offer after getting user media...');
+          await peerConnection.setRemoteDescription(pendingOffer);
+          remoteDescriptionSetRef.current = true;
+          setPendingOffer(null);
+          
+          console.log('🔄 Creating answer for incoming call...');
+          const answer = await peerConnection.createAnswer();
+          await peerConnection.setLocalDescription(answer);
+          console.log('📤 Sending answer:', answer);
+          onSignal({
+            type: 'answer',
+            sdp: answer,
+          });
+        }
       }
     } catch (error) {
       console.error('Error starting call:', error);
@@ -164,7 +182,6 @@ export const useWebRTC = (onSignal: (signal: any) => void, isIncoming: boolean =
       case 'offer':
         console.log('📨 Processing offer...', {isIncoming});
         try {
-          // Правильно извлекаем SDP из сигнала
           const sdp = signal.sdp?.sdp || signal.sdp;
           console.log('📄 SDP received:', typeof sdp, sdp?.substring(0, 50) + '...');
           
@@ -173,30 +190,38 @@ export const useWebRTC = (onSignal: (signal: any) => void, isIncoming: boolean =
             sdp: sdp
           });
           
-          await peerConnection.setRemoteDescription(sessionDescription);
-          remoteDescriptionSetRef.current = true;
-          console.log('✅ Remote description (offer) set successfully');
-          
-          // Обрабатываем буферизованные ICE кандидаты
-          console.log(`🧊 Processing ${iceCandidateBufferRef.current.length} buffered ICE candidates`);
-          for (const candidate of iceCandidateBufferRef.current) {
-            try {
-              await peerConnection.addIceCandidate(candidate);
-              console.log('✅ Buffered ICE candidate added successfully');
-            } catch (error) {
-              console.error('❌ Error adding buffered ICE candidate:', error);
+          if (localStreamRef.current) {
+            // Если у нас уже есть локальный поток, обрабатываем offer немедленно
+            console.log('Processing offer immediately - local stream available');
+            await peerConnection.setRemoteDescription(sessionDescription);
+            remoteDescriptionSetRef.current = true;
+            console.log('✅ Remote description (offer) set successfully');
+            
+            // Обрабатываем буферизованные ICE кандидаты
+            console.log(`🧊 Processing ${iceCandidateBufferRef.current.length} buffered ICE candidates`);
+            for (const candidate of iceCandidateBufferRef.current) {
+              try {
+                await peerConnection.addIceCandidate(candidate);
+                console.log('✅ Buffered ICE candidate added successfully');
+              } catch (error) {
+                console.error('❌ Error adding buffered ICE candidate:', error);
+              }
             }
+            iceCandidateBufferRef.current = []; // Очищаем буфер
+            
+            console.log('🔄 Creating answer with existing local stream...');
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            console.log('📤 Sending answer:', answer);
+            onSignal({
+              type: 'answer',
+              sdp: answer,
+            });
+          } else {
+            // Если локального потока нет, сохраняем offer для обработки после startCall()
+            console.log('Storing offer for later processing - no local stream yet');
+            setPendingOffer(sessionDescription);
           }
-          iceCandidateBufferRef.current = []; // Очищаем буфер
-          
-          console.log('🔄 Creating answer...');
-          const answer = await peerConnection.createAnswer();
-          await peerConnection.setLocalDescription(answer);
-          console.log('📤 Sending answer:', answer);
-          onSignal({
-            type: 'answer',
-            sdp: answer,
-          });
         } catch (error) {
           console.error('❌ Error processing offer:', error);
         }
@@ -260,6 +285,16 @@ export const useWebRTC = (onSignal: (signal: any) => void, isIncoming: boolean =
     }
   };
 
+  const getAudioStream = () => {
+    if (localStreamRef.current) {
+      const audioTrack = localStreamRef.current.getAudioTracks()[0];
+      if (audioTrack) {
+        return localStreamRef.current;
+      }
+    }
+    return null;
+  };
+
   return {
     localStream,
     remoteStream,
@@ -269,5 +304,6 @@ export const useWebRTC = (onSignal: (signal: any) => void, isIncoming: boolean =
     toggleAudio,
     toggleVideo,
     handleSignal,
+    getAudioStream,
   };
 }; 

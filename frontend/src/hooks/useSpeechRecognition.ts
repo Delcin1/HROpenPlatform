@@ -69,7 +69,7 @@ export const useSpeechRecognition = (
         console.error('Speech recognition error:', event.error);
         setIsListening(false);
         
-        // Более интеллектуальная обработка ошибок
+        // Более интеллектуальная обработка ошибок с учетом видеозвонков
         switch (event.error) {
           case 'no-speech':
             console.log('No speech detected, continuing...');
@@ -77,16 +77,18 @@ export const useSpeechRecognition = (
             break;
             
           case 'audio-capture':
-            console.log('Audio capture error, retrying in 2 seconds...');
+            console.log('Audio capture error - likely microphone conflict with WebRTC');
+            // При конфликте с WebRTC ждем дольше
             setTimeout(() => {
               if (recognitionRef.current && !isListening) {
                 try {
+                  console.log('Retrying after audio-capture error...');
                   recognitionRef.current.start();
                 } catch (e) {
                   console.error('Failed to restart after audio-capture error:', e);
                 }
               }
-            }, 2000);
+            }, 15000); // Увеличиваем до 15 секунд для разрешения конфликта
             break;
             
           case 'network':
@@ -103,16 +105,27 @@ export const useSpeechRecognition = (
             break;
             
           case 'aborted':
-            console.log('Speech recognition aborted - likely due to microphone conflict');
-            // Не перезапускаем при aborted
+            console.log('Speech recognition aborted - microphone conflict detected');
+            // При конфликте микрофона ждем еще дольше
+            setTimeout(() => {
+              if (recognitionRef.current && !isListening) {
+                try {
+                  console.log('Retrying after aborted (microphone conflict)...');
+                  recognitionRef.current.start();
+                } catch (e) {
+                  console.error('Failed to restart after aborted error:', e);
+                }
+              }
+            }, 20000); // 20 секунд для полного разрешения конфликта
             break;
             
           case 'not-allowed':
             console.error('Microphone access not allowed');
+            // Не пытаемся перезапускать если нет разрешения
             break;
             
           default:
-            console.log(`Speech recognition error: ${event.error}, retrying in 3 seconds...`);
+            console.log(`Speech recognition error: ${event.error}, retrying in 5 seconds...`);
             setTimeout(() => {
               if (recognitionRef.current && !isListening) {
                 try {
@@ -121,7 +134,7 @@ export const useSpeechRecognition = (
                   console.error('Failed to restart after unknown error:', e);
                 }
               }
-            }, 3000);
+            }, 5000);
         }
       };
 
@@ -150,9 +163,27 @@ export const useSpeechRecognition = (
     if (recognitionRef.current && !isListening && isSupported) {
       try {
         console.log('Starting speech recognition...');
+        
+        // Проверяем, есть ли активные медиа потоки (индикатор видеозвонка)
+        navigator.mediaDevices.enumerateDevices().then(devices => {
+          const audioDevices = devices.filter(device => device.kind === 'audioinput');
+          console.log('Available audio devices:', audioDevices.length);
+        });
+
         recognitionRef.current.start();
       } catch (e) {
         console.error('Failed to start recognition:', e);
+        // Если не удалось запустить, попробуем через некоторое время
+        setTimeout(() => {
+          if (recognitionRef.current && !isListening) {
+            try {
+              console.log('Retrying speech recognition start...');
+              recognitionRef.current.start();
+            } catch (retryError) {
+              console.error('Retry failed:', retryError);
+            }
+          }
+        }, 2000);
       }
     } else if (isListening) {
       console.log('Speech recognition already running');
