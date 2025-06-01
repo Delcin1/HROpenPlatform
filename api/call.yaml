@@ -1,0 +1,204 @@
+openapi: 3.0.0
+info:
+  title: HROpenPlatform Call OpenAPI 3.1.0 specification
+  description: HROpenPlatform Call OpenAPI 3.1.0 specification
+  version: 1.0.0
+externalDocs:
+  description: Find out more about Swagger
+  url: https://swagger.io
+paths:
+  /api/v1/call:
+    post:
+      tags:
+        - call
+      summary: Create new call
+      operationId: createCall
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCallRequest'
+      responses:
+        '201':
+          description: Call created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Call'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal Server Error
+
+  /api/v1/call/{call_id}/ws:
+    get:
+      tags:
+        - call
+      operationId: handleWebSocket
+      summary: WebSocket connection for real-time video call and speech recognition
+      parameters:
+        - name: call_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: Connection
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [upgrade]
+        - name: Upgrade
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [websocket]
+        - name: Sec-WebSocket-Version
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [13]
+        - name: Sec-WebSocket-Key
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '101':
+          description: Switching Protocols
+          headers:
+            Connection:
+              schema:
+                type: string
+                enum: [upgrade]
+            Upgrade:
+              schema:
+                type: string
+                enum: [websocket]
+            Sec-WebSocket-Accept:
+              schema:
+                type: string
+        '401':
+          description: Unauthorized
+        '404':
+          description: Call not found
+
+  /api/v1/call/history:
+    get:
+      tags:
+        - call
+      operationId: getCallHistory
+      summary: Get call history with transcripts
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CallWithTranscript'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal Server Error
+
+components:
+  schemas:
+    Call:
+      type: object
+      required:
+        - id
+        - participants
+        - created_at
+        - status
+      properties:
+        id:
+          type: string
+        participants:
+          type: array
+          items:
+            $ref: '#/components/schemas/CallParticipant'
+        created_at:
+          type: string
+          format: date-time
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+          enum: [active, ended]
+
+    CallParticipant:
+      type: object
+      required:
+        - id
+        - description
+      properties:
+        id:
+          type: string
+        description:
+          type: string
+        avatar:
+          type: string
+          nullable: true
+
+    CallWithTranscript:
+      type: object
+      required:
+        - call
+        - transcript
+      properties:
+        call:
+          $ref: '#/components/schemas/Call'
+        transcript:
+          type: array
+          items:
+            $ref: '#/components/schemas/TranscriptEntry'
+
+    TranscriptEntry:
+      type: object
+      required:
+        - user
+        - text
+        - timestamp
+      properties:
+        user:
+          $ref: '#/components/schemas/CallParticipant'
+        text:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    CreateCallRequest:
+      type: object
+      required:
+        - participants
+      properties:
+        participants:
+          type: array
+          items:
+            type: string 

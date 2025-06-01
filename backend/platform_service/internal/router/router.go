@@ -3,6 +3,7 @@ package router
 import (
 	"PlatformService/internal/config"
 	"PlatformService/internal/router/auth"
+	"PlatformService/internal/router/call"
 	"PlatformService/internal/router/chat"
 	"PlatformService/internal/router/company"
 	"PlatformService/internal/router/cv"
@@ -23,6 +24,7 @@ type servers struct {
 	company company.ServerInterface
 	cv      cv.ServerInterface
 	chat    chat.ServerInterface
+	call    call.ServerInterface
 }
 
 type Handler struct {
@@ -41,6 +43,7 @@ func NewHandler(cfg *config.Config, log *slog.Logger, services *service.Services
 			company: company.NewServer(services, log),
 			cv:      cv.NewServer(services, log, cfg),
 			chat:    chat.NewServer(services, log, cfg),
+			call:    call.NewServer(services, log, cfg),
 		},
 	}
 }
@@ -100,6 +103,15 @@ func (h *Handler) Init() *chi.Mux {
 	chat.HandlerWithOptions(h.servers.chat, chat.ChiServerOptions{
 		BaseRouter: router,
 		Middlewares: []chat.MiddlewareFunc{
+			slogchiMW,
+			CORSMiddleware,
+			mw.OptionalAuthMiddleware(h.cfg, h.log),
+		},
+	})
+
+	call.HandlerWithOptions(h.servers.call, call.ChiServerOptions{
+		BaseRouter: router,
+		Middlewares: []call.MiddlewareFunc{
 			slogchiMW,
 			CORSMiddleware,
 			mw.OptionalAuthMiddleware(h.cfg, h.log),

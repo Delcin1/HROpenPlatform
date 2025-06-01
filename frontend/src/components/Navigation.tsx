@@ -24,6 +24,7 @@ import {
   Logout as LogoutIcon,
   Search as SearchIcon,
   Chat as ChatIcon,
+  Phone as PhoneIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -35,6 +36,7 @@ const menuItems = [
   { text: 'Загрузить резюме', icon: <DescriptionIcon />, path: '/cv' },
   { text: 'Поиск профилей', icon: <SearchIcon />, path: '/search' },
   { text: 'Чат', icon: <ChatIcon />, path: '/chat' },
+  { text: 'История звонков', icon: <PhoneIcon />, path: '/calls' },
 ];
 
 export const Navigation = () => {

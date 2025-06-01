@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "generate-api": "openapi --input ../api/auth.yaml --output ./src/api/auth && openapi --input ../api/profile.yaml --output ./src/api/profile && openapi --input ../api/company.yaml --output ./src/api/company && openapi --input ../api/cv.yaml --output ./src/api/cv && openapi --input ../api/chat.yaml --output ./src/api/chat"
+    "generate-api": "openapi --input ../api/auth.yaml --output ./src/api/auth && openapi --input ../api/profile.yaml --output ./src/api/profile && openapi --input ../api/company.yaml --output ./src/api/company && openapi --input ../api/cv.yaml --output ./src/api/cv && openapi --input ../api/chat.yaml --output ./src/api/chat && openapi --input ../api/call.yaml --output ./src/api/call"
   },
   "dependencies": {
     "@emotion/react": "^11.11.4",

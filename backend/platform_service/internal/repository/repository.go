@@ -3,6 +3,7 @@ package repository
 import (
 	"PlatformService/internal/config"
 	"PlatformService/internal/repository/auth"
+	"PlatformService/internal/repository/call"
 	"PlatformService/internal/repository/chat"
 	"PlatformService/internal/repository/client"
 	"PlatformService/internal/repository/company"
@@ -16,6 +17,7 @@ type Repositories struct {
 	Company   company.Querier
 	CV        cv.Querier
 	Chat      chat.Querier
+	Call      call.Querier
 	TxManager TransactionManager
 }
 
@@ -26,6 +28,7 @@ func NewRepositories(cfg *config.Config, pool client.PostgresClient) *Repositori
 		Company:   company.New(),
 		CV:        cv.New(),
 		Chat:      chat.New(),
+		Call:      call.New(),
 		TxManager: NewTransactionManager(cfg, pool),
 	}
 }

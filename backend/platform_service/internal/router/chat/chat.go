@@ -62,9 +62,9 @@ func (s *Server) CreateChat(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		users[i] = ChatUser{
-			Id: profile.Guid,
+			Id:          profile.Guid,
 			Description: profile.Description,
-			Avatar: profile.Avatar,
+			Avatar:      profile.Avatar,
 		}
 	}
 
@@ -118,9 +118,9 @@ func (s *Server) GetChatMessages(w http.ResponseWriter, r *http.Request, chatId 
 			Id:        message.ID,
 			Text:      message.Text,
 			User: ChatUser{
-				Id: profile.Guid,
+				Id:          profile.Guid,
 				Description: profile.Description,
-				Avatar: profile.Avatar,
+				Avatar:      profile.Avatar,
 			},
 		}
 	}
@@ -161,9 +161,9 @@ func (s *Server) GetUserChats(w http.ResponseWriter, r *http.Request) {
 				Id:        chat.LastMessage.ID,
 				Text:      chat.LastMessage.Text,
 				User: ChatUser{
-					Id: profile.Guid,
+					Id:          profile.Guid,
 					Description: profile.Description,
-					Avatar: profile.Avatar,
+					Avatar:      profile.Avatar,
 				},
 			}
 		}
@@ -177,9 +177,9 @@ func (s *Server) GetUserChats(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			users[j] = ChatUser{
-				Id: profile.Guid,
+				Id:          profile.Guid,
 				Description: profile.Description,
-				Avatar: profile.Avatar,
+				Avatar:      profile.Avatar,
 			}
 		}
 
@@ -235,9 +235,9 @@ func (s *Server) SendMessage(w http.ResponseWriter, r *http.Request, chatId stri
 		Id:        message.ID,
 		Text:      message.Text,
 		User: ChatUser{
-			Id: profile.Guid,
+			Id:          profile.Guid,
 			Description: profile.Description,
-			Avatar: profile.Avatar,
+			Avatar:      profile.Avatar,
 		},
 	}
 
@@ -283,6 +283,21 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request, chatId 
 				break
 			}
 
+			// // Проверяем, является ли сообщение сигналом звонка
+			// var signal map[string]interface{}
+			// if err := json.Unmarshal(message, &signal); err == nil {
+			// 	if signalType, ok := signal["type"].(string); ok {
+			// 		if signalType == "call-signal" || signalType == "call-request" {
+			// 			// Обрабатываем сигнал звонка
+			// 			if err := s.services.Call.HandleCallSignal(ctx, chatId, claims.UserGUID, message); err != nil {
+			// 				log.Printf("Error handling call signal: %v", err)
+			// 			}
+			// 			continue
+			// 		}
+			// 	}
+			// }
+
+			// // Если это не сигнал звонка, обрабатываем как обычное сообщение
 			_, err = s.services.Chat.SendMessage(r.Context(), chatId, claims.UserGUID, string(message))
 			if err != nil {
 				log.Printf("Error sending message: %v", err)

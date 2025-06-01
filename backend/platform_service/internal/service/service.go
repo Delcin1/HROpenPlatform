@@ -5,14 +5,15 @@ import (
 	"PlatformService/internal/models"
 	"PlatformService/internal/repository"
 	"PlatformService/internal/service/auth"
+	"PlatformService/internal/service/call"
 	"PlatformService/internal/service/chat"
 	"PlatformService/internal/service/company"
 	"PlatformService/internal/service/cv"
 	"PlatformService/internal/service/profile"
 	"PlatformService/internal/service/storage"
 	"context"
-	"fmt"
 	"io"
+	"log/slog"
 )
 
 type AuthService interface {
@@ -62,19 +63,24 @@ type ChatService interface {
 	Unsubscribe(chatID string, conn *chat.WebSocketConnection)
 }
 
-type Services struct {
-	Auth    AuthService
-	Profile ProfileService
-	Company CompanyService
-	CV      CVService
-	Storage StorageService
-	Chat    ChatService
+type CallService interface {
+	Call(ctx context.Context, userGUID string, callType string) error
 }
 
-func NewServices(cfg *config.Config, repo *repository.Repositories) (*Services, error) {
+type Services struct {
+	Auth    auth.Service
+	Profile profile.Service
+	Company company.Service
+	CV      cv.Service
+	Chat    chat.Service
+	Call    call.Service
+	Storage storage.Service
+}
+
+func NewServices(cfg *config.Config, repo *repository.Repositories, log *slog.Logger) (*Services, error) {
 	storageService, err := storage.NewService(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create storage service: %w", err)
+		return nil, err
 	}
 
 	return &Services{
@@ -82,7 +88,8 @@ func NewServices(cfg *config.Config, repo *repository.Repositories) (*Services, 
 		Profile: profile.NewService(repo),
 		Company: company.NewService(repo),
 		CV:      cv.NewService(repo),
-		Storage: storageService,
 		Chat:    chat.NewService(repo),
+		Call:    call.NewService(repo, log),
+		Storage: storageService,
 	}, nil
 }

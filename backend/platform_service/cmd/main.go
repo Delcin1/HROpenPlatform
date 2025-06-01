@@ -74,7 +74,7 @@ func main() {
 	pgClient := client.NewPostgresClient(db)
 
 	repositories := repository.NewRepositories(cfg, pgClient)
-	services, err := service.NewServices(cfg, repositories)
+	services, err := service.NewServices(cfg, repositories, logger)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to create services", "error", err)
 		return

@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Container,
   Box,
@@ -16,36 +16,49 @@ import {
   Badge,
   CircularProgress,
   Alert,
+  Button,
 } from '@mui/material';
-import { Send as SendIcon } from '@mui/icons-material';
+import { Send as SendIcon, VideoCall as VideoCallIcon } from '@mui/icons-material';
 import { ChatService } from '../api/chat';
+import { CallService } from '../api/call';
 import type { ChatWithLastMessage, Message } from '../api/chat';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { VideoCallWithTranscript } from '../components/VideoCallWithTranscript';
 
 export const Chat = () => {
+  const { chatId } = useParams<{ chatId: string }>();
   const [searchParams] = useSearchParams();
-  const initialChatId = searchParams.get('chatId');
-  const [selectedChat, setSelectedChat] = useState<string | null>(initialChatId);
-  const [messageText, setMessageText] = useState('');
+  const navigate = useNavigate();
+  const [selectedChat, setSelectedChat] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [wsError, setWsError] = useState<string | null>(null);
-  const { sendMessage, onMessage, isConnected } = useWebSocket(selectedChat);
+  const [newMessage, setNewMessage] = useState('');
+  const [isVideoCallActive, setIsVideoCallActive] = useState(false);
+  const [activeCallId, setActiveCallId] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const { sendMessage, onMessage } = useWebSocket(selectedChat);
+
+  // Устанавливаем selectedChat из URL только при первой загрузке
+  useEffect(() => {
+    const urlChatId = chatId || searchParams.get('chatId');
+    if (urlChatId && !selectedChat) {
+      setSelectedChat(urlChatId);
+    }
+  }, [chatId, searchParams, selectedChat]);
+
+  // Запрос для загрузки списка чатов
   const { data: chats, isLoading: chatsLoading, error: chatsError } = useQuery<ChatWithLastMessage[]>({
     queryKey: ['chats'],
     queryFn: async () => {
       try {
         const response = await ChatService.getUserChats();
         console.log('Server response:', response);
-        console.log('Response type:', typeof response);
         
-        // Проверяем, что response существует
         if (!response) {
           console.error('Response is null or undefined');
           return [];
         }
 
-        // Если response это строка, пытаемся распарсить её как JSON
         let parsedResponse = response;
         if (typeof response === 'string') {
           try {
@@ -56,7 +69,6 @@ export const Chat = () => {
           }
         }
 
-        // Проверяем, что распарсенный ответ является массивом
         if (!Array.isArray(parsedResponse)) {
           console.error('Parsed response is not an array:', parsedResponse);
           return [];
@@ -70,19 +82,18 @@ export const Chat = () => {
     },
   });
 
+  // Запрос для загрузки сообщений выбранного чата
   const { data: chatMessages, isLoading: messagesLoading } = useQuery<Message[]>({
     queryKey: ['messages', selectedChat],
     queryFn: async () => {
       if (!selectedChat) return [];
       try {
         const response = await ChatService.getChatMessages(selectedChat, 50, 0);
-        // Проверяем, что response существует
         if (!response) {
           console.error('Messages response is null or undefined');
           return [];
         }
 
-        // Если response это строка, пытаемся распарсить её как JSON
         let parsedResponse = response;
         if (typeof response === 'string') {
           try {
@@ -93,7 +104,6 @@ export const Chat = () => {
           }
         }
 
-        // Проверяем, что распарсенный ответ является массивом
         if (!Array.isArray(parsedResponse)) {
           console.error('Parsed messages response is not an array:', parsedResponse);
           return [];
@@ -109,37 +119,28 @@ export const Chat = () => {
   });
 
   useEffect(() => {
-    if (!selectedChat) {
-      setWsError(null);
-      return;
-    }
+    if (!selectedChat) return;
 
-    const token = localStorage.getItem('access_token');
-    console.log('Chat: Checking token in localStorage:', token ? 'Token exists' : 'No token found');
-    
-    if (!token) {
-      console.error('Chat: No auth token found in localStorage. Please login first.');
-      setWsError('Требуется авторизация. Пожалуйста, войдите в систему.');
-      return;
-    }
-
-    // Подписываемся на сообщения
     const unsubscribe = onMessage?.((message: Message) => {
-      setMessages((prev) => {
-        if (!Array.isArray(prev)) return [message];
-        if (prev.some(m => m.id === message.id)) {
-          return prev;
-        }
-        return [message, ...prev];
-      });
-      setWsError(null);
+      try {
+        const parsedMessage = typeof message === 'string' ? JSON.parse(message) : message;
+        
+        setMessages((prev) => {
+          if (!Array.isArray(prev)) return [parsedMessage];
+          if (prev.some(m => m.id === parsedMessage.id)) {
+            return prev;
+          }
+          return [parsedMessage, ...prev];
+        });
+      } catch (error) {
+        console.error('Error processing message:', error);
+      }
     });
 
     return () => {
       if (unsubscribe) {
         unsubscribe();
       }
-      setWsError(null);
     };
   }, [selectedChat, onMessage]);
 
@@ -149,18 +150,70 @@ export const Chat = () => {
     }
   }, [chatMessages]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (messageText.trim() && selectedChat && sendMessage) {
-      try {
-        sendMessage(messageText.trim());
-        setMessageText('');
-        setWsError(null);
-      } catch (error) {
-        setWsError('Ошибка при отправке сообщения');
-        console.error('Error sending message:', error);
-      }
+    if (!newMessage.trim() || !selectedChat) return;
+
+    try {
+      const message = await ChatService.sendMessage(selectedChat, {
+        text: newMessage.trim(),
+      });
+      
+      setMessages(prev => [...prev, message]);
+      setNewMessage('');
+      
+      // Также отправляем через WebSocket для real-time обновлений
+      sendMessage(newMessage.trim());
+    } catch (err) {
+      console.error('Error sending message:', err);
     }
+  };
+
+  const handleStartVideoCall = async () => {
+    if (!selectedChat || !chats) return;
+
+    try {
+      // Находим текущий чат и получаем других участников
+      const currentChat = chats.find(c => c.chat.id === selectedChat);
+      if (!currentChat) return;
+
+      const otherParticipants = currentChat.chat.users
+        ?.filter(user => user.id !== getCurrentUserId())
+        ?.map(user => user.id) || [];
+
+      if (otherParticipants.length === 0) {
+        alert('Нет других участников для звонка');
+        return;
+      }
+
+      // Создаем новый звонок
+      const call = await CallService.createCall({
+        participants: otherParticipants,
+      });
+
+      setActiveCallId(call.id);
+      setIsVideoCallActive(true);
+    } catch (err) {
+      console.error('Error starting video call:', err);
+      alert('Ошибка при создании видеозвонка');
+    }
+  };
+
+  const handleEndVideoCall = () => {
+    setIsVideoCallActive(false);
+    setActiveCallId(null);
+  };
+
+  const handleChatSelect = (chatId: string) => {
+    setSelectedChat(chatId);
   };
 
   const getCurrentUserId = () => {
@@ -173,6 +226,17 @@ export const Chat = () => {
       console.error('Error decoding token:', error);
       return null;
     }
+  };
+
+  const formatMessageTime = (timestamp: string) => {
+    return new Date(timestamp).toLocaleTimeString('ru-RU', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const isMyMessage = (message: Message) => {
+    return message.user.id === getCurrentUserId();
   };
 
   const currentUserId = getCurrentUserId();
@@ -206,121 +270,161 @@ export const Chat = () => {
   }
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, height: 'calc(100vh - 100px)' }}>
-      <Box sx={{ display: 'flex', height: '100%', gap: 2 }}>
-        {/* Chat List */}
-        <Paper sx={{ width: 300, overflow: 'auto' }}>
-          <List>
-            {Array.isArray(chats) && chats.map((chat) => (
-              <ListItem
-                key={chat.chat.id}
-                button
-                selected={selectedChat === chat.chat.id}
-                onClick={() => setSelectedChat(chat.chat.id)}
-              >
-                <ListItemAvatar>
-                  <Badge badgeContent={chat.unread_count} color="primary">
-                    <Avatar src={chat.chat.users?.find(user => user.id !== currentUserId)?.avatar || undefined} />
-                  </Badge>
-                </ListItemAvatar>
-                <ListItemText
-                  primary={chat.chat.users?.find(user => user.id !== currentUserId)?.description || 'Без названия'}
-                  secondary={chat.last_message?.text || 'Нет сообщений'}
-                />
-              </ListItem>
-            ))}
-          </List>
-        </Paper>
+    <>
+      <Container maxWidth="lg" sx={{ mt: 4, height: 'calc(100vh - 100px)' }}>
+        <Box sx={{ display: 'flex', height: '100%', gap: 2 }}>
+          {/* Список чатов */}
+          <Paper sx={{ width: 300, overflow: 'auto' }}>
+            <List>
+              {Array.isArray(chats) && chats.map((chat) => {
+                const otherUser = chat.chat.users?.find(user => user.id !== currentUserId);
+                return (
+                  <ListItem
+                    key={chat.chat.id}
+                    button
+                    selected={selectedChat === chat.chat.id}
+                    onClick={() => handleChatSelect(chat.chat.id)}
+                  >
+                    <ListItemAvatar>
+                      <Badge badgeContent={chat.unread_count} color="primary">
+                        <Avatar src={otherUser?.avatar || undefined}>
+                          {otherUser?.description?.charAt(0)?.toUpperCase() || '?'}
+                        </Avatar>
+                      </Badge>
+                    </ListItemAvatar>
+                    <ListItemText
+                      primary={otherUser?.description || 'Без названия'}
+                      secondary={chat.last_message?.text || 'Нет сообщений'}
+                    />
+                  </ListItem>
+                );
+              })}
+            </List>
+          </Paper>
 
-        {/* Chat Messages */}
-        <Paper sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          {selectedChat ? (
-            <>
-              <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-                <Typography variant="h6">
-                  {Array.isArray(chats) && chats.find((c) => c.chat.id === selectedChat)?.chat.users?.find(user => user.id !== currentUserId)?.description || 'Без названия'}
+          {/* Область чата */}
+          <Paper sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            {selectedChat ? (
+              <>
+                {/* Заголовок чата */}
+                <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="h6">
+                    {chats.find(c => c.chat.id === selectedChat)?.chat.users?.find(u => u.id !== currentUserId)?.description || 'Чат'}
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    startIcon={<VideoCallIcon />}
+                    onClick={handleStartVideoCall}
+                    sx={{ ml: 2 }}
+                  >
+                    Видеозвонок
+                  </Button>
+                </Box>
+
+                {/* Область сообщений */}
+                <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+                  {messagesLoading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                      <CircularProgress />
+                    </Box>
+                  ) : messages.length === 0 ? (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 4 }}>
+                      <Typography variant="h4" sx={{ mb: 2 }}>💬</Typography>
+                      <Typography variant="h6" gutterBottom>
+                        Начните разговор
+                      </Typography>
+                      <Typography color="text.secondary">
+                        Отправьте первое сообщение в этом чате
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <List>
+                      {Array.isArray(messages) && messages.map((message) => (
+                        <ListItem
+                          key={message.id}
+                          sx={{
+                            flexDirection: 'column',
+                            alignItems: isMyMessage(message) ? 'flex-end' : 'flex-start',
+                          }}
+                        >
+                          <Box sx={{ 
+                            maxWidth: '70%',
+                            backgroundColor: isMyMessage(message) ? 'primary.main' : 'grey.100',
+                            color: isMyMessage(message) ? 'primary.contrastText' : 'text.primary',
+                            borderRadius: 2,
+                            p: 2,
+                            mb: 1
+                          }}>
+                            {!isMyMessage(message) && (
+                              <Typography variant="caption" sx={{ fontWeight: 'bold', display: 'block', mb: 0.5 }}>
+                                {message.user?.description || 'Неизвестный пользователь'}
+                              </Typography>
+                            )}
+                            <Typography variant="body1">{message.text}</Typography>
+                            <Typography variant="caption" sx={{ display: 'block', mt: 0.5, opacity: 0.7 }}>
+                              {formatMessageTime(message.created_at)}
+                            </Typography>
+                          </Box>
+                        </ListItem>
+                      ))}
+                    </List>
+                  )}
+                  <div ref={messagesEndRef} />
+                </Box>
+
+                {/* Форма отправки сообщения */}
+                <Box
+                  component="form"
+                  onSubmit={handleSendMessage}
+                  sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}
+                >
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <TextField
+                      fullWidth
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      placeholder="Введите сообщение..."
+                    />
+                    <IconButton
+                      type="submit"
+                      color="primary"
+                      disabled={!newMessage.trim()}
+                    >
+                      <SendIcon />
+                    </IconButton>
+                  </Box>
+                </Box>
+              </>
+            ) : (
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  height: '100%',
+                }}
+              >
+                <Typography variant="h4" sx={{ mb: 2 }}>💬</Typography>
+                <Typography variant="h6" gutterBottom>
+                  Выберите чат
+                </Typography>
+                <Typography color="text.secondary">
+                  Выберите чат слева для начала общения
                 </Typography>
               </Box>
+            )}
+          </Paper>
+        </Box>
+      </Container>
 
-              {wsError && (
-                <Alert severity="error" sx={{ m: 2 }}>
-                  {wsError}
-                </Alert>
-              )}
-
-              <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
-                {messagesLoading ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-                    <CircularProgress />
-                  </Box>
-                ) : (
-                  <List>
-                    {Array.isArray(messages) && messages.map((message) => (
-                      <ListItem
-                        key={message.id}
-                        sx={{
-                          flexDirection: 'column',
-                          alignItems: 'flex-start',
-                        }}
-                      >
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                          <Avatar
-                            src={message.user?.avatar || undefined}
-                            sx={{ width: 24, height: 24, mr: 1 }}
-                          />
-                          <Typography variant="subtitle2" color="text.secondary">
-                            {message.user?.description || 'Неизвестный пользователь'}
-                          </Typography>
-                        </Box>
-                        <Typography variant="caption" color="text.secondary">
-                          {new Date(message.created_at).toLocaleString()}
-                        </Typography>
-                        <Typography>{message.text}</Typography>
-                      </ListItem>
-                    ))}
-                  </List>
-                )}
-              </Box>
-
-              <Box
-                component="form"
-                onSubmit={handleSendMessage}
-                sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}
-              >
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <TextField
-                    fullWidth
-                    value={messageText}
-                    onChange={(e) => setMessageText(e.target.value)}
-                    placeholder="Введите сообщение..."
-                    disabled={!isConnected}
-                  />
-                  <IconButton
-                    type="submit"
-                    color="primary"
-                    disabled={!messageText.trim() || !isConnected}
-                  >
-                    <SendIcon />
-                  </IconButton>
-                </Box>
-              </Box>
-            </>
-          ) : (
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                height: '100%',
-              }}
-            >
-              <Typography color="text.secondary">
-                Выберите чат для начала общения
-              </Typography>
-            </Box>
-          )}
-        </Paper>
-      </Box>
-    </Container>
+      {/* Компонент видеозвонка */}
+      {isVideoCallActive && activeCallId && (
+        <VideoCallWithTranscript
+          callId={activeCallId}
+          onEndCall={handleEndVideoCall}
+        />
+      )}
+    </>
   );
 }; 
