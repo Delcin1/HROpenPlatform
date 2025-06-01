@@ -8,11 +8,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/jackc/pgtype"
 	"sync"
-
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgtype"
 )
 
 type Service interface {
@@ -36,8 +35,47 @@ type service struct {
 }
 
 func (s *service) CreateChat(ctx context.Context, userIDs []string) (*models.Chat, error) {
+	if len(userIDs) != 2 {
+		return nil, errors.New("chat must have exactly 2 users")
+	}
+
 	var ret models.Chat
 	err := s.repo.TxManager.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		userGUID1, err := uuid.Parse(userIDs[0])
+		if err != nil {
+			return err
+		}
+		userGUID2, err := uuid.Parse(userIDs[1])
+		if err != nil {
+			return err
+		}
+		chat, err := s.repo.Chat.GetChatByUsersIDs(ctx, tx, chat.GetChatByUsersIDsParams{
+			UserID: userGUID1,
+			UserID_2: userGUID2,
+		})
+		if err == nil {
+			ret = models.Chat{
+				ID:        chat.ID.String(),
+				CreatedAt: chat.CreatedAt,
+				UpdatedAt: chat.UpdatedAt,
+				Users:     userIDs,
+			}
+			return nil
+		}
+
+		return err
+	})
+
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return nil, err
+	}
+
+	if err == nil {
+		return &ret, nil
+	}
+
+	// Create chat
+	err = s.repo.TxManager.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		// Create chat
 		result, err := s.repo.Chat.CreateChat(ctx, tx)
 		if err != nil {

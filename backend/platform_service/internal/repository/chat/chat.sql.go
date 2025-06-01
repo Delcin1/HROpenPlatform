@@ -92,6 +92,33 @@ func (q *Queries) GetChatByID(ctx context.Context, db DBTX, id uuid.UUID) (GetCh
 	return i, err
 }
 
+const getChatByUsersIDs = `-- name: GetChatByUsersIDs :one
+SELECT id, created_at, updated_at
+FROM chat.chats
+where id = (SELECT chat_id
+			FROM chat.chat_users
+			WHERE user_id IN ($1, $2)
+			GROUP BY chat_id
+			HAVING COUNT(DISTINCT user_id) = 2
+			ORDER BY MAX(created_at) DESC
+			LIMIT 1
+			)
+ORDER BY updated_at DESC
+LIMIT 1
+`
+
+type GetChatByUsersIDsParams struct {
+	UserID   uuid.UUID
+	UserID_2 uuid.UUID
+}
+
+func (q *Queries) GetChatByUsersIDs(ctx context.Context, db DBTX, arg GetChatByUsersIDsParams) (ChatChat, error) {
+	row := db.QueryRow(ctx, getChatByUsersIDs, arg.UserID, arg.UserID_2)
+	var i ChatChat
+	err := row.Scan(&i.ID, &i.CreatedAt, &i.UpdatedAt)
+	return i, err
+}
+
 const getChatMessages = `-- name: GetChatMessages :many
 SELECT id, chat_id, user_id, text, created_at
 FROM chat.messages

@@ -54,3 +54,18 @@ WHERE m.chat_id = $1 AND m.user_id != $2 AND m.created_at > (
 UPDATE chat.chats
 SET updated_at = NOW()
 WHERE id = $1; 
+
+-- name: GetChatByUsersIDs :one
+SELECT *
+FROM chat.chats
+where id = (SELECT chat_id
+			FROM chat.chat_users
+			WHERE user_id IN ($1, $2)
+			GROUP BY chat_id
+			HAVING COUNT(DISTINCT user_id) = 2
+			ORDER BY MAX(created_at) DESC
+			LIMIT 1
+			)
+ORDER BY updated_at DESC
+LIMIT 1
+;

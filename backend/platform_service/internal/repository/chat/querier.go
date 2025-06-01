@@ -15,6 +15,7 @@ type Querier interface {
 	CreateChat(ctx context.Context, db DBTX) (ChatChat, error)
 	CreateMessage(ctx context.Context, db DBTX, arg CreateMessageParams) (ChatMessage, error)
 	GetChatByID(ctx context.Context, db DBTX, id uuid.UUID) (GetChatByIDRow, error)
+	GetChatByUsersIDs(ctx context.Context, db DBTX, arg GetChatByUsersIDsParams) (ChatChat, error)
 	GetChatMessages(ctx context.Context, db DBTX, arg GetChatMessagesParams) ([]ChatMessage, error)
 	GetLastMessage(ctx context.Context, db DBTX, chatID uuid.UUID) (ChatMessage, error)
 	GetUnreadCount(ctx context.Context, db DBTX, arg GetUnreadCountParams) (int64, error)
