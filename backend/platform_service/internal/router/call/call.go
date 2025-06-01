@@ -2,6 +2,7 @@ package call
 
 import (
 	"PlatformService/internal/config"
+	"PlatformService/internal/router/mw"
 	"PlatformService/internal/service"
 	"PlatformService/internal/service/auth"
 	"encoding/json"
@@ -44,7 +45,7 @@ var roomsMutex sync.RWMutex
 func (s *Server) CreateCall(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	userGUID, ok := ctx.Value("user_guid").(string)
+	userGUID, ok := ctx.Value(mw.UserIDKey).(string)
 	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -89,7 +90,7 @@ func (s *Server) CreateCall(w http.ResponseWriter, r *http.Request) {
 func (s *Server) GetCallHistory(w http.ResponseWriter, r *http.Request, params GetCallHistoryParams) {
 	ctx := r.Context()
 
-	userGUID, ok := ctx.Value("user_guid").(string)
+	userGUID, ok := ctx.Value(mw.UserIDKey).(string)
 	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -144,9 +145,11 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request, callId 
 	}
 	defer conn.Close()
 
+	userGUID := claims.UserGUID
+
 	// Создаем соединение
 	wsConn := &WebSocketConnection{
-		UserID: claims.UserGUID,
+		UserID: userGUID,
 		Send:   make(chan []byte, 256),
 	}
 
@@ -161,7 +164,7 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request, callId 
 		callRooms[callId] = room
 	}
 	room.mutex.Lock()
-	room.Connections[claims.UserGUID] = wsConn
+	room.Connections[userGUID] = wsConn
 	room.mutex.Unlock()
 	roomsMutex.Unlock()
 
@@ -170,7 +173,7 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request, callId 
 		roomsMutex.Lock()
 		if room, exists := callRooms[callId]; exists {
 			room.mutex.Lock()
-			delete(room.Connections, claims.UserGUID)
+			delete(room.Connections, userGUID)
 			room.mutex.Unlock()
 		}
 		roomsMutex.Unlock()
@@ -204,7 +207,7 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request, callId 
 			switch messageType {
 			case "webrtc-signal":
 				// Пересылаем WebRTC сигналы другим участникам
-				s.broadcastToRoom(callId, claims.UserGUID, message)
+				s.broadcastToRoom(callId, userGUID, message)
 
 			case "speech-transcript":
 				// Обрабатываем транскрипт речи
@@ -214,7 +217,7 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request, callId 
 				}
 
 				// Сохраняем транскрипт через сервис
-				err := s.services.Call.AddTranscript(ctx, callId, claims.UserGUID, text)
+				err := s.services.Call.AddTranscript(ctx, callId, userGUID, text)
 				if err != nil {
 					log.Printf("Error saving transcript: %v", err)
 				}
@@ -222,7 +225,7 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request, callId 
 				// Отправляем транскрипт всем участникам
 				transcriptMessage := map[string]interface{}{
 					"type":      "transcript",
-					"user_id":   claims.UserGUID,
+					"user_id":   userGUID,
 					"text":      text,
 					"timestamp": data["timestamp"],
 				}

@@ -283,21 +283,20 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request, chatId 
 				break
 			}
 
-			// // Проверяем, является ли сообщение сигналом звонка
-			// var signal map[string]interface{}
-			// if err := json.Unmarshal(message, &signal); err == nil {
-			// 	if signalType, ok := signal["type"].(string); ok {
-			// 		if signalType == "call-signal" || signalType == "call-request" {
-			// 			// Обрабатываем сигнал звонка
-			// 			if err := s.services.Call.HandleCallSignal(ctx, chatId, claims.UserGUID, message); err != nil {
-			// 				log.Printf("Error handling call signal: %v", err)
-			// 			}
-			// 			continue
-			// 		}
-			// 	}
-			// }
+			// Проверяем, является ли сообщение сигналом видеозвонка
+			var signal map[string]interface{}
+			if err := json.Unmarshal(message, &signal); err == nil {
+				if signalType, ok := signal["type"].(string); ok {
+					// Обрабатываем уведомления о видеозвонках
+					if signalType == "incoming-video-call" || signalType == "call-accepted" || signalType == "call-declined" {
+						// Рассылаем уведомление всем участникам чата (кроме отправителя)
+						s.services.Chat.BroadcastMessage(chatId, message, claims.UserGUID)
+						continue
+					}
+				}
+			}
 
-			// // Если это не сигнал звонка, обрабатываем как обычное сообщение
+			// Если это не сигнал видеозвонка, обрабатываем как обычное сообщение
 			_, err = s.services.Chat.SendMessage(r.Context(), chatId, claims.UserGUID, string(message))
 			if err != nil {
 				log.Printf("Error sending message: %v", err)

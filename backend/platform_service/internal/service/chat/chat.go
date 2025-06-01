@@ -9,9 +9,10 @@ import (
 	"encoding/json"
 	"errors"
 	"sync"
+
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgtype"
+	"github.com/jackc/pgx/v4"
 )
 
 type Service interface {
@@ -21,6 +22,7 @@ type Service interface {
 	SendMessage(ctx context.Context, chatID, userID, text string) (*models.Message, error)
 	Subscribe(chatID string, conn *WebSocketConnection)
 	Unsubscribe(chatID string, conn *WebSocketConnection)
+	BroadcastMessage(chatID string, message []byte, excludeUserID string)
 }
 
 type WebSocketConnection struct {
@@ -50,7 +52,7 @@ func (s *service) CreateChat(ctx context.Context, userIDs []string) (*models.Cha
 			return err
 		}
 		chat, err := s.repo.Chat.GetChatByUsersIDs(ctx, tx, chat.GetChatByUsersIDsParams{
-			UserID: userGUID1,
+			UserID:   userGUID1,
 			UserID_2: userGUID2,
 		})
 		if err == nil {
@@ -293,6 +295,24 @@ func (s *service) Unsubscribe(chatID string, conn *WebSocketConnection) {
 		}
 	}
 	s.clientsMux.Unlock()
+}
+
+func (s *service) BroadcastMessage(chatID string, message []byte, excludeUserID string) {
+	s.clientsMux.RLock()
+	defer s.clientsMux.RUnlock()
+
+	if clients, ok := s.clients[chatID]; ok {
+		for client := range clients {
+			// Исключаем отправителя из рассылки
+			if client.UserID != excludeUserID {
+				select {
+				case client.Send <- message:
+				default:
+					// Skip if client's buffer is full
+				}
+			}
+		}
+	}
 }
 
 func NewService(repo *repository.Repositories) Service {

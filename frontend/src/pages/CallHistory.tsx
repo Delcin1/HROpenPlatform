@@ -1,4 +1,23 @@
 import React, { useEffect, useState } from 'react';
+import {
+  Container,
+  Box,
+  Typography,
+  Paper,
+  List,
+  ListItem,
+  Grid,
+  Card,
+  CardContent,
+  Avatar,
+  AvatarGroup,
+  Chip,
+  CircularProgress,
+  Alert,
+  Button,
+  Divider,
+} from '@mui/material';
+import { Phone as PhoneIcon, AccessTime as AccessTimeIcon, People as PeopleIcon } from '@mui/icons-material';
 import { CallService } from '../api/call';
 import type { CallWithTranscript } from '../api/call';
 
@@ -38,215 +57,258 @@ export const CallHistory = () => {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  const getCallStatus = (call: CallWithTranscript['call']) => {
+  const getCallStatusChip = (call: CallWithTranscript['call']) => {
     switch (call.status) {
       case 'active':
-        return { text: 'Активный', color: 'text-green-600' };
+        return <Chip label="Активный" color="success" size="small" />;
       case 'ended':
-        return { text: 'Завершен', color: 'text-gray-600' };
+        return <Chip label="Завершен" color="default" size="small" />;
       default:
-        return { text: call.status, color: 'text-gray-600' };
+        return <Chip label={call.status} color="default" size="small" />;
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Загрузка истории звонков...</p>
-        </div>
-      </div>
+      <Container maxWidth="lg">
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+          <Box sx={{ textAlign: 'center' }}>
+            <CircularProgress size={48} sx={{ mb: 2 }} />
+            <Typography color="text.secondary">Загрузка истории звонков...</Typography>
+          </Box>
+        </Box>
+      </Container>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600 mb-4">{error}</p>
-          <button
-            onClick={loadCallHistory}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            Попробовать снова
-          </button>
-        </div>
-      </div>
+      <Container maxWidth="lg">
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+          <Box sx={{ textAlign: 'center', maxWidth: 400 }}>
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+            <Button variant="contained" onClick={loadCallHistory}>
+              Попробовать снова
+            </Button>
+          </Box>
+        </Box>
+      </Container>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">История звонков</h1>
-          <p className="mt-2 text-gray-600">
-            Просмотр прошлых видеозвонков и их транскриптов
-          </p>
-        </div>
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      {/* Заголовок */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 'bold' }}>
+          История звонков
+        </Typography>
+        <Typography variant="subtitle1" color="text.secondary">
+          Просмотр прошлых видеозвонков и их транскриптов
+        </Typography>
+      </Box>
 
-        {calls.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="text-gray-400 text-6xl mb-4">📞</div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Нет истории звонков
-            </h3>
-            <p className="text-gray-600">
-              Ваши видеозвонки будут отображаться здесь
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Список звонков */}
-            <div className="space-y-4">
-              {calls.map((callWithTranscript) => {
-                const { call, transcript } = callWithTranscript;
-                const status = getCallStatus(call);
-                
-                return (
-                  <div
-                    key={call.id}
-                    className={`bg-white rounded-lg shadow p-6 cursor-pointer transition-all hover:shadow-md ${
-                      selectedCall?.call.id === call.id ? 'ring-2 ring-blue-500' : ''
-                    }`}
-                    onClick={() => setSelectedCall(callWithTranscript)}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-2">
-                          <div className="flex -space-x-2">
-                            {call.participants.slice(0, 3).map((participant, index) => (
-                              <div
-                                key={participant.id}
-                                className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium border-2 border-white"
-                                title={participant.description}
-                              >
-                                {participant.description.charAt(0).toUpperCase()}
-                              </div>
-                            ))}
-                            {call.participants.length > 3 && (
-                              <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center text-white text-xs font-medium border-2 border-white">
-                                +{call.participants.length - 3}
-                              </div>
-                            )}
-                          </div>
-                          <div>
-                            <h3 className="font-medium text-gray-900">
-                              {call.participants.length === 2 
-                                ? call.participants.find(p => p.id !== 'current-user')?.description || 'Звонок'
-                                : `Групповой звонок (${call.participants.length} участников)`
-                              }
-                            </h3>
-                            <p className="text-sm text-gray-500">
-                              {new Date(call.created_at).toLocaleString('ru-RU')}
-                            </p>
-                          </div>
-                        </div>
+      {calls.length === 0 ? (
+        <Paper sx={{ p: 8, textAlign: 'center' }}>
+          <PhoneIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+          <Typography variant="h6" gutterBottom>
+            Нет истории звонков
+          </Typography>
+          <Typography color="text.secondary">
+            Ваши видеозвонки будут отображаться здесь
+          </Typography>
+        </Paper>
+      ) : (
+        <Grid container spacing={3}>
+          {/* Список звонков */}
+          <Grid item xs={12} lg={6}>
+            <Paper sx={{ height: 'calc(100vh - 200px)', overflow: 'auto' }}>
+              <List sx={{ p: 0 }}>
+                {calls.map((callWithTranscript, index) => {
+                  const { call, transcript } = callWithTranscript;
+                  const isSelected = selectedCall?.call.id === call.id;
+                  
+                  return (
+                    <React.Fragment key={call.id}>
+                      <ListItem
+                        button
+                        selected={isSelected}
+                        onClick={() => setSelectedCall(callWithTranscript)}
+                        sx={{ 
+                          py: 2,
+                          px: 3,
+                          '&:hover': {
+                            backgroundColor: 'action.hover',
+                          },
+                          ...(isSelected && {
+                            backgroundColor: 'primary.light',
+                            '&:hover': {
+                              backgroundColor: 'primary.light',
+                            },
+                          }),
+                        }}
+                      >
+                        <Box sx={{ width: '100%' }}>
+                          {/* Участники и информация о звонке */}
+                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                            <AvatarGroup max={3} sx={{ mr: 2 }}>
+                              {call.participants.map((participant, idx) => (
+                                <Avatar
+                                  key={participant.id}
+                                  sx={{ width: 32, height: 32, fontSize: '0.875rem' }}
+                                  title={participant.description}
+                                >
+                                  {participant.description.charAt(0).toUpperCase()}
+                                </Avatar>
+                              ))}
+                            </AvatarGroup>
+                            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                              <Typography variant="subtitle1" noWrap>
+                                {call.participants.length === 2 
+                                  ? call.participants.find(p => p.id !== 'current-user')?.description || 'Звонок'
+                                  : `Групповой звонок (${call.participants.length} участников)`
+                                }
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {new Date(call.created_at).toLocaleString('ru-RU')}
+                              </Typography>
+                            </Box>
+                          </Box>
 
-                        <div className="flex items-center justify-between text-sm">
-                          <span className={`font-medium ${status.color}`}>
-                            {status.text}
-                          </span>
-                          <span className="text-gray-500">
-                            {formatDuration(call.created_at, call.ended_at ?? undefined)}
-                          </span>
-                        </div>
+                          {/* Статус и длительность */}
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                            {getCallStatusChip(call)}
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <AccessTimeIcon sx={{ fontSize: 16, mr: 0.5, color: 'text.secondary' }} />
+                              <Typography variant="caption" color="text.secondary">
+                                {formatDuration(call.created_at, call.ended_at ?? undefined)}
+                              </Typography>
+                            </Box>
+                          </Box>
 
-                        {transcript.length > 0 && (
-                          <div className="mt-3 p-3 bg-gray-50 rounded text-sm">
-                            <p className="text-gray-600 line-clamp-2">
-                              {transcript[0].text}
-                              {transcript.length > 1 && '...'}
-                            </p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {transcript.length} сообщений в транскрипте
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                          {/* Превью транскрипта */}
+                          {transcript.length > 0 && (
+                            <Box sx={{ mt: 2, p: 1.5, backgroundColor: 'grey.50', borderRadius: 1 }}>
+                              <Typography variant="body2" color="text.secondary" sx={{ 
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                              }}>
+                                {transcript[0].text}
+                                {transcript.length > 1 && '...'}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                                {transcript.length} сообщений в транскрипте
+                              </Typography>
+                            </Box>
+                          )}
+                        </Box>
+                      </ListItem>
+                      {index < calls.length - 1 && <Divider />}
+                    </React.Fragment>
+                  );
+                })}
+              </List>
+            </Paper>
+          </Grid>
 
-            {/* Детали выбранного звонка */}
-            <div className="lg:sticky lg:top-8">
+          {/* Детали выбранного звонка */}
+          <Grid item xs={12} lg={6}>
+            <Paper sx={{ height: 'calc(100vh - 200px)', overflow: 'auto' }}>
               {selectedCall ? (
-                <div className="bg-white rounded-lg shadow p-6">
-                  <div className="mb-6">
-                    <h2 className="text-xl font-bold text-gray-900 mb-2">
-                      Детали звонка
-                    </h2>
-                    <div className="space-y-2 text-sm text-gray-600">
-                      <p>
-                        <span className="font-medium">Дата:</span>{' '}
-                        {new Date(selectedCall.call.created_at).toLocaleString('ru-RU')}
-                      </p>
-                      <p>
-                        <span className="font-medium">Длительность:</span>{' '}
-                        {formatDuration(selectedCall.call.created_at, selectedCall.call.ended_at ?? undefined)}
-                      </p>
-                      <p>
-                        <span className="font-medium">Участники:</span>{' '}
-                        {selectedCall.call.participants.map(p => p.description).join(', ')}
-                      </p>
-                    </div>
-                  </div>
+                <Box sx={{ p: 3 }}>
+                  {/* Заголовок деталей */}
+                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
+                    Детали звонка
+                  </Typography>
+                  
+                  {/* Информация о звонке */}
+                  <Box sx={{ mb: 3 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <AccessTimeIcon sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
+                      <Typography variant="body2" color="text.secondary">
+                        <strong>Дата:</strong> {new Date(selectedCall.call.created_at).toLocaleString('ru-RU')}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <AccessTimeIcon sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
+                      <Typography variant="body2" color="text.secondary">
+                        <strong>Длительность:</strong> {formatDuration(selectedCall.call.created_at, selectedCall.call.ended_at ?? undefined)}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <PeopleIcon sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
+                      <Typography variant="body2" color="text.secondary">
+                        <strong>Участники:</strong> {selectedCall.call.participants.map(p => p.description).join(', ')}
+                      </Typography>
+                    </Box>
+                  </Box>
 
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                      Транскрипт разговора
-                    </h3>
-                    
-                    {selectedCall.transcript.length === 0 ? (
-                      <p className="text-gray-500 text-center py-8">
+                  <Divider sx={{ mb: 3 }} />
+
+                  {/* Транскрипт */}
+                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
+                    Транскрипт разговора
+                  </Typography>
+                  
+                  {selectedCall.transcript.length === 0 ? (
+                    <Box sx={{ textAlign: 'center', py: 4 }}>
+                      <Typography color="text.secondary">
                         Транскрипт недоступен
-                      </p>
-                    ) : (
-                      <div className="space-y-4 max-h-96 overflow-y-auto">
-                        {selectedCall.transcript.map((entry, index) => {
-                          const participant = selectedCall.call.participants.find(
-                            p => p.id === entry.user.id
-                          );
-                          
-                          return (
-                            <div key={index} className="border-l-4 border-blue-500 pl-4">
-                              <div className="flex items-center space-x-2 mb-1">
-                                <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-medium">
-                                  {entry.user.description.charAt(0).toUpperCase()}
-                                </div>
-                                <span className="font-medium text-gray-900">
-                                  {entry.user.description}
-                                </span>
-                                <span className="text-xs text-gray-500">
-                                  {new Date(entry.timestamp).toLocaleTimeString('ru-RU')}
-                                </span>
-                              </div>
-                              <p className="text-gray-700">{entry.text}</p>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
+                      {selectedCall.transcript.map((entry, index) => (
+                        <Card key={index} variant="outlined" sx={{ mb: 2, borderLeft: 3, borderLeftColor: 'primary.main' }}>
+                          <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                              <Avatar sx={{ width: 24, height: 24, mr: 1, fontSize: '0.75rem' }}>
+                                {entry.user.description.charAt(0).toUpperCase()}
+                              </Avatar>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mr: 1 }}>
+                                {entry.user.description}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {new Date(entry.timestamp).toLocaleTimeString('ru-RU')}
+                              </Typography>
+                            </Box>
+                            <Typography variant="body2">
+                              {entry.text}
+                            </Typography>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </Box>
+                  )}
+                </Box>
               ) : (
-                <div className="bg-white rounded-lg shadow p-6 text-center">
-                  <div className="text-gray-400 text-4xl mb-4">📋</div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                <Box sx={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  justifyContent: 'center', 
+                  alignItems: 'center', 
+                  height: '100%',
+                  textAlign: 'center',
+                  p: 3 
+                }}>
+                  <PhoneIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+                  <Typography variant="h6" gutterBottom>
                     Выберите звонок
-                  </h3>
-                  <p className="text-gray-600">
+                  </Typography>
+                  <Typography color="text.secondary">
                     Нажмите на звонок слева, чтобы просмотреть детали и транскрипт
-                  </p>
-                </div>
+                  </Typography>
+                </Box>
               )}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+            </Paper>
+          </Grid>
+        </Grid>
+      )}
+    </Container>
   );
 }; 

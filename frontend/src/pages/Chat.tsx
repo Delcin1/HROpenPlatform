@@ -17,8 +17,12 @@ import {
   CircularProgress,
   Alert,
   Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
-import { Send as SendIcon, VideoCall as VideoCallIcon } from '@mui/icons-material';
+import { Send as SendIcon, VideoCall as VideoCallIcon, Phone as PhoneIcon, PhoneDisabled as PhoneDisabledIcon } from '@mui/icons-material';
 import { ChatService } from '../api/chat';
 import { CallService } from '../api/call';
 import type { ChatWithLastMessage, Message } from '../api/chat';
@@ -34,6 +38,10 @@ export const Chat = () => {
   const [newMessage, setNewMessage] = useState('');
   const [isVideoCallActive, setIsVideoCallActive] = useState(false);
   const [activeCallId, setActiveCallId] = useState<string | null>(null);
+  const [incomingCall, setIncomingCall] = useState<{
+    callId: string;
+    callerName: string;
+  } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { sendMessage, onMessage } = useWebSocket(selectedChat);
@@ -125,6 +133,30 @@ export const Chat = () => {
       try {
         const parsedMessage = typeof message === 'string' ? JSON.parse(message) : message;
         
+        // Обрабатываем входящие видеозвонки
+        if (parsedMessage.type === 'incoming-video-call') {
+          setIncomingCall({
+            callId: parsedMessage.callId,
+            callerName: parsedMessage.callerName,
+          });
+          return;
+        }
+
+        // Обрабатываем отклонение звонка
+        if (parsedMessage.type === 'call-declined') {
+          setIncomingCall(null);
+          alert('Звонок был отклонен');
+          return;
+        }
+
+        // Обрабатываем принятие звонка
+        if (parsedMessage.type === 'call-accepted') {
+          setIncomingCall(null);
+          setActiveCallId(parsedMessage.callId);
+          setIsVideoCallActive(true);
+          return;
+        }
+
         setMessages((prev) => {
           if (!Array.isArray(prev)) return [parsedMessage];
           if (prev.some(m => m.id === parsedMessage.id)) {
@@ -185,8 +217,9 @@ export const Chat = () => {
       const currentChat = chats.find(c => c.chat.id === selectedChat);
       if (!currentChat) return;
 
+      const currentUserId = getCurrentUserId();
       const otherParticipants = currentChat.chat.users
-        ?.filter(user => user.id !== getCurrentUserId())
+        ?.filter(user => user.id !== currentUserId)
         ?.map(user => user.id) || [];
 
       if (otherParticipants.length === 0) {
@@ -199,6 +232,19 @@ export const Chat = () => {
         participants: otherParticipants,
       });
 
+      // Получаем имя текущего пользователя
+      const currentUser = currentChat.chat.users?.find(u => u.id === currentUserId);
+      const callerName = currentUser?.description || 'Неизвестный пользователь';
+
+      // Отправляем уведомление о входящем видеозвонке через WebSocket
+      if (sendMessage) {
+        sendMessage(JSON.stringify({
+          type: 'incoming-video-call',
+          callId: call.id,
+          callerName: callerName,
+        }));
+      }
+
       setActiveCallId(call.id);
       setIsVideoCallActive(true);
     } catch (err) {
@@ -210,6 +256,36 @@ export const Chat = () => {
   const handleEndVideoCall = () => {
     setIsVideoCallActive(false);
     setActiveCallId(null);
+  };
+
+  const handleAcceptCall = () => {
+    if (!incomingCall) return;
+
+    // Отправляем уведомление о принятии звонка
+    if (sendMessage) {
+      sendMessage(JSON.stringify({
+        type: 'call-accepted',
+        callId: incomingCall.callId,
+      }));
+    }
+
+    setActiveCallId(incomingCall.callId);
+    setIsVideoCallActive(true);
+    setIncomingCall(null);
+  };
+
+  const handleDeclineCall = () => {
+    if (!incomingCall) return;
+
+    // Отправляем уведомление об отклонении звонка
+    if (sendMessage) {
+      sendMessage(JSON.stringify({
+        type: 'call-declined',
+        callId: incomingCall.callId,
+      }));
+    }
+
+    setIncomingCall(null);
   };
 
   const handleChatSelect = (chatId: string) => {
@@ -271,6 +347,47 @@ export const Chat = () => {
 
   return (
     <>
+      {/* Диалог входящего видеозвонка */}
+      <Dialog
+        open={!!incomingCall}
+        onClose={handleDeclineCall}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ textAlign: 'center' }}>
+          <VideoCallIcon sx={{ fontSize: 48, color: 'primary.main', mb: 1, display: 'block', mx: 'auto' }} />
+          Входящий видеозвонок
+        </DialogTitle>
+        <DialogContent sx={{ textAlign: 'center' }}>
+          <Typography variant="h6" gutterBottom>
+            {incomingCall?.callerName}
+          </Typography>
+          <Typography color="text.secondary">
+            Хочет начать видеозвонок с вами
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: 'center', gap: 2, pb: 3 }}>
+          <Button
+            onClick={handleDeclineCall}
+            variant="outlined"
+            color="error"
+            startIcon={<PhoneDisabledIcon />}
+            size="large"
+          >
+            Отклонить
+          </Button>
+          <Button
+            onClick={handleAcceptCall}
+            variant="contained"
+            color="success"
+            startIcon={<PhoneIcon />}
+            size="large"
+          >
+            Принять
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Container maxWidth="lg" sx={{ mt: 4, height: 'calc(100vh - 100px)' }}>
         <Box sx={{ display: 'flex', height: '100%', gap: 2 }}>
           {/* Список чатов */}
