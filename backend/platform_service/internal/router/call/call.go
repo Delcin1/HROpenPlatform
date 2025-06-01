@@ -4,9 +4,7 @@ import (
 	"PlatformService/internal/config"
 	"PlatformService/internal/router/mw"
 	"PlatformService/internal/service"
-	"PlatformService/internal/service/auth"
 	"encoding/json"
-	"log"
 	"log/slog"
 	"net/http"
 	"sync"
@@ -122,16 +120,15 @@ func (s *Server) GetCallHistory(w http.ResponseWriter, r *http.Request, params G
 func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request, callId string, params HandleWebSocketParams) {
 	ctx := r.Context()
 
-	// Валидация токена
-	claims, err := auth.ValidateToken(params.Token, s.cfg.AccessTokenSecret)
-	if err != nil {
-		s.log.ErrorContext(ctx, "Failed to validate token", "error", err)
+	// Получаем userGUID из контекста (установлен AuthMiddleware)
+	userGUID, ok := ctx.Value(mw.UserIDKey).(string)
+	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
 	// Проверяем существование звонка
-	_, err = uuid.Parse(callId)
+	_, err := uuid.Parse(callId)
 	if err != nil {
 		http.Error(w, "Invalid call ID", http.StatusBadRequest)
 		return
@@ -140,12 +137,12 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request, callId 
 	// Подключение WebSocket
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("Failed to upgrade connection: %v", err)
+		s.log.ErrorContext(ctx, "Failed to upgrade WebSocket connection", "error", err)
 		return
 	}
 	defer conn.Close()
 
-	userGUID := claims.UserGUID
+	s.log.InfoContext(ctx, "WebSocket connection established", "user_id", userGUID, "call_id", callId)
 
 	// Создаем соединение
 	wsConn := &WebSocketConnection{
@@ -170,6 +167,7 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request, callId 
 
 	// Удаляем из комнаты при отключении
 	defer func() {
+		s.log.InfoContext(ctx, "WebSocket connection closed", "user_id", userGUID, "call_id", callId)
 		roomsMutex.Lock()
 		if room, exists := callRooms[callId]; exists {
 			room.mutex.Lock()
@@ -189,20 +187,28 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request, callId 
 			_, message, err := conn.ReadMessage()
 			if err != nil {
 				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-					log.Printf("Error reading message: %v", err)
+					s.log.ErrorContext(ctx, "Unexpected WebSocket close error", "error", err)
+				} else {
+					s.log.InfoContext(ctx, "WebSocket connection closed by client", "error", err)
 				}
 				break
 			}
 
+			s.log.DebugContext(ctx, "Received WebSocket message", "message", string(message))
+
 			var data map[string]interface{}
 			if err := json.Unmarshal(message, &data); err != nil {
+				s.log.ErrorContext(ctx, "Failed to unmarshal WebSocket message", "error", err, "message", string(message))
 				continue
 			}
 
 			messageType, ok := data["type"].(string)
 			if !ok {
+				s.log.WarnContext(ctx, "WebSocket message missing type field", "data", data)
 				continue
 			}
+
+			s.log.InfoContext(ctx, "Processing WebSocket message", "type", messageType, "user_id", userGUID)
 
 			switch messageType {
 			case "webrtc-signal":
@@ -219,7 +225,7 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request, callId 
 				// Сохраняем транскрипт через сервис
 				err := s.services.Call.AddTranscript(ctx, callId, userGUID, text)
 				if err != nil {
-					log.Printf("Error saving transcript: %v", err)
+					s.log.ErrorContext(ctx, "Error saving transcript", "error", err)
 				}
 
 				// Отправляем транскрипт всем участникам
@@ -236,7 +242,7 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request, callId 
 				// Завершаем звонок через сервис
 				err := s.services.Call.EndCall(ctx, callId)
 				if err != nil {
-					log.Printf("Error ending call: %v", err)
+					s.log.ErrorContext(ctx, "Error ending call", "error", err)
 				}
 
 				// Уведомляем всех участников о завершении звонка
@@ -255,11 +261,12 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request, callId 
 		select {
 		case message, ok := <-wsConn.Send:
 			if !ok {
+				s.log.InfoContext(ctx, "WebSocket send channel closed")
 				return
 			}
 
 			if err := conn.WriteMessage(websocket.TextMessage, message); err != nil {
-				log.Printf("Error writing message: %v", err)
+				s.log.ErrorContext(ctx, "Error writing WebSocket message", "error", err)
 				return
 			}
 		}

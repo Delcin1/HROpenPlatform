@@ -114,7 +114,7 @@ func (h *Handler) Init() *chi.Mux {
 		Middlewares: []call.MiddlewareFunc{
 			slogchiMW,
 			CORSMiddleware,
-			mw.OptionalAuthMiddleware(h.cfg, h.log),
+			mw.AuthMiddleware(h.cfg, h.log),
 		},
 	})
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   Box,
   Paper,
@@ -47,6 +47,7 @@ export const VideoCallWithTranscript: React.FC<VideoCallWithTranscriptProps> = (
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
   const transcriptRef = useRef<HTMLDivElement>(null);
 
   // WebRTC хук для видеозвонка
@@ -94,6 +95,8 @@ export const VideoCallWithTranscript: React.FC<VideoCallWithTranscriptProps> = (
       return;
     }
 
+    console.log('Setting up WebSocket connection for callId:', callId);
+    
     // Используем localhost:8080 для development, так как бэкенд запущен на этом порту
     const websocketUrl = `ws://localhost:8080/api/v1/call/${callId}/ws?token=${token}`;
 
@@ -102,12 +105,14 @@ export const VideoCallWithTranscript: React.FC<VideoCallWithTranscriptProps> = (
     websocket.onopen = () => {
       console.log('WebSocket connected');
       setWs(websocket);
+      setIsWebSocketConnected(true);
       setError(null);
     };
 
     websocket.onmessage = async (event) => {
       try {
         const data = JSON.parse(event.data);
+        console.log('Received WebSocket message:', data);
 
         switch (data.type) {
           case 'webrtc-signal':
@@ -135,20 +140,23 @@ export const VideoCallWithTranscript: React.FC<VideoCallWithTranscriptProps> = (
       }
     };
 
-    websocket.onclose = () => {
-      console.log('WebSocket disconnected');
+    websocket.onclose = (event) => {
+      console.log('WebSocket disconnected', { code: event.code, reason: event.reason });
       setWs(null);
+      setIsWebSocketConnected(false);
     };
 
     websocket.onerror = (error) => {
       console.error('WebSocket error:', error);
       setError('Ошибка подключения WebSocket');
+      setIsWebSocketConnected(false);
     };
 
     return () => {
+      console.log('Cleaning up WebSocket connection');
       websocket.close();
     };
-  }, [callId, handleSignal, onEndCall]);
+  }, [callId]);
 
   // Автоскролл транскрипта
   useEffect(() => {
@@ -161,24 +169,36 @@ export const VideoCallWithTranscript: React.FC<VideoCallWithTranscriptProps> = (
   useEffect(() => {
     const initializeCall = async () => {
       try {
-        if (ws && !isIncoming) {
-          await startCall();
+        console.log('Initializing call...', { isWebSocketConnected, isIncoming });
+        
+        if (isWebSocketConnected) {
+          // Всегда запускаем распознавание речи
+          startListening();
+          
+          // Для исходящих звонков запускаем WebRTC
+          if (!isIncoming) {
+            console.log('Starting WebRTC call...');
+            await startCall();
+          }
         }
-        startListening();
       } catch (error) {
         console.error('Error initializing call:', error);
         setError('Ошибка инициализации звонка');
       }
     };
 
-    initializeCall();
+    if (isWebSocketConnected) {
+      initializeCall();
+    }
 
     return () => {
-      stopListening();
+      if (isWebSocketConnected) {
+        stopListening();
+      }
     };
-  }, [ws, isIncoming, startCall, startListening, stopListening]);
+  }, [isWebSocketConnected, isIncoming, startCall, startListening, stopListening]);
 
-  const handleEndCall = () => {
+  const handleEndCall = useCallback(() => {
     // Отправляем сигнал завершения звонка
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({
@@ -190,17 +210,17 @@ export const VideoCallWithTranscript: React.FC<VideoCallWithTranscriptProps> = (
     stopListening();
     setIsCallActive(false);
     onEndCall();
-  };
+  }, [ws, endCall, stopListening, onEndCall]);
 
-  const handleToggleAudio = () => {
+  const handleToggleAudio = useCallback(() => {
     toggleAudio();
     setAudioEnabled(!audioEnabled);
-  };
+  }, [toggleAudio, audioEnabled]);
 
-  const handleToggleVideo = () => {
+  const handleToggleVideo = useCallback(() => {
     toggleVideo();
     setVideoEnabled(!videoEnabled);
-  };
+  }, [toggleVideo, videoEnabled]);
 
   if (error) {
     return (

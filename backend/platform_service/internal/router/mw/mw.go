@@ -43,6 +43,7 @@ func GenerateState() string {
 
 // FindToken ищет и возвращает JWT токен.
 func FindToken(r *http.Request) (string, error) {
+	// Сначала проверяем Authorization header
 	if authHeader := r.Header.Get("Authorization"); authHeader != "" {
 		headParts := strings.Split(authHeader, "Bearer ")
 		if len(headParts) != 2 { //nolint:mnd // Exactly 2 parts
@@ -50,6 +51,12 @@ func FindToken(r *http.Request) (string, error) {
 		}
 		return headParts[1], nil
 	}
+
+	// Затем проверяем query параметр token (для WebSocket соединений)
+	if token := r.URL.Query().Get("token"); token != "" {
+		return token, nil
+	}
+
 	return "", ErrWrongAuthHeader
 }
 
@@ -153,7 +160,7 @@ func OptionalAuthMiddleware(cfg *config.Config, log *slog.Logger) func(next http
 			}
 
 			ctx = context.WithValue(ctx, UserIDKey, claims.UserGUID)
-				next.ServeHTTP(w, r.WithContext(ctx))
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }
