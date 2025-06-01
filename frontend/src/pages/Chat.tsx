@@ -163,6 +163,20 @@ export const Chat = () => {
     }
   };
 
+  const getCurrentUserId = () => {
+    const token = localStorage.getItem('access_token');
+    if (!token) return null;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.user_guid;
+    } catch (error) {
+      console.error('Error decoding token:', error);
+      return null;
+    }
+  };
+
+  const currentUserId = getCurrentUserId();
+
   if (chatsLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
@@ -206,11 +220,11 @@ export const Chat = () => {
               >
                 <ListItemAvatar>
                   <Badge badgeContent={chat.unread_count} color="primary">
-                    <Avatar src={chat.chat.users?.[0]?.avatar || undefined} />
+                    <Avatar src={chat.chat.users?.find(user => user.id !== currentUserId)?.avatar || undefined} />
                   </Badge>
                 </ListItemAvatar>
                 <ListItemText
-                  primary={chat.chat.users?.map(user => user.description).join(', ') || 'Без названия'}
+                  primary={chat.chat.users?.find(user => user.id !== currentUserId)?.description || 'Без названия'}
                   secondary={chat.last_message?.text || 'Нет сообщений'}
                 />
               </ListItem>
@@ -224,7 +238,7 @@ export const Chat = () => {
             <>
               <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
                 <Typography variant="h6">
-                  {Array.isArray(chats) && chats.find((c) => c.chat.id === selectedChat)?.chat.users?.map(user => user.description).join(', ') || 'Без названия'}
+                  {Array.isArray(chats) && chats.find((c) => c.chat.id === selectedChat)?.chat.users?.find(user => user.id !== currentUserId)?.description || 'Без названия'}
                 </Typography>
               </Box>
 

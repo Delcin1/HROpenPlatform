@@ -206,7 +206,11 @@ const getUserChats = `-- name: GetUserChats :many
 SELECT c.id, c.created_at, c.updated_at, array_agg(cu.user_id) as users
 FROM chat.chats c
 JOIN chat.chat_users cu ON c.id = cu.chat_id
-WHERE cu.user_id = $1
+WHERE c.id IN (
+    SELECT cu2.chat_id
+    FROM chat.chat_users cu2
+    WHERE cu2.user_id = $1
+)
 GROUP BY c.id
 ORDER BY c.updated_at DESC
 `
