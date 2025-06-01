@@ -38,22 +38,58 @@ export const UserProfile = () => {
   });
 
   const createChatMutation = useMutation({
-    mutationFn: (users: string[]) => ChatService.createChat({ users }),
+    mutationFn: async (users: string[]) => {
+      const response = await ChatService.createChat({ users });
+      console.log('Create chat response:', response);
+      return response;
+    },
     onSuccess: (data) => {
-      if (data && data.id) {
-        navigate(`/chat?chatId=${data.id}`);
-      } else {
-        setError('Ошибка: не удалось получить ID чата');
+      console.log('Chat created successfully:', data);
+      try {
+        // Если data это строка, пытаемся распарсить её как JSON
+        const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
+        console.log('Parsed chat data:', parsedData);
+        
+        if (parsedData && typeof parsedData === 'object' && 'id' in parsedData) {
+          navigate(`/chat?chatId=${parsedData.id}`);
+        } else {
+          console.error('Invalid chat data received:', parsedData);
+          setError('Ошибка: не удалось получить ID чата');
+        }
+      } catch (error) {
+        console.error('Error parsing chat data:', error);
+        setError('Ошибка: не удалось обработать ответ сервера');
       }
     },
     onError: (error: any) => {
+      console.error('Error creating chat:', error);
       setError(error.response?.data?.message || 'Ошибка при создании чата');
     },
   });
 
   const handleStartChat = () => {
     if (guid) {
-      createChatMutation.mutate([guid]);
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        setError('Ошибка: требуется авторизация');
+        return;
+      }
+
+      // Декодируем JWT токен
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const currentUserGuid = payload.user_guid;
+        
+        if (!currentUserGuid) {
+          setError('Ошибка: не удалось получить ID пользователя из токена');
+          return;
+        }
+
+        createChatMutation.mutate([currentUserGuid, guid]);
+      } catch (error) {
+        console.error('Error decoding token:', error);
+        setError('Ошибка: не удалось прочитать токен авторизации');
+      }
     }
   };
 
