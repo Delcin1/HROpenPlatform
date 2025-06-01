@@ -49,6 +49,7 @@ export const VideoCallWithTranscript: React.FC<VideoCallWithTranscriptProps> = (
   const [error, setError] = useState<string | null>(null);
   const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
   const transcriptRef = useRef<HTMLDivElement>(null);
+  const isInitializedRef = useRef(false);
 
   // WebRTC хук для видеозвонка
   const {
@@ -144,12 +145,14 @@ export const VideoCallWithTranscript: React.FC<VideoCallWithTranscriptProps> = (
       console.log('WebSocket disconnected', { code: event.code, reason: event.reason });
       setWs(null);
       setIsWebSocketConnected(false);
+      isInitializedRef.current = false; // Сбрасываем инициализацию при закрытии соединения
     };
 
     websocket.onerror = (error) => {
       console.error('WebSocket error:', error);
       setError('Ошибка подключения WebSocket');
       setIsWebSocketConnected(false);
+      isInitializedRef.current = false; // Сбрасываем инициализацию при ошибке
     };
 
     return () => {
@@ -168,35 +171,50 @@ export const VideoCallWithTranscript: React.FC<VideoCallWithTranscriptProps> = (
   // Начинаем звонок и распознавание речи
   useEffect(() => {
     const initializeCall = async () => {
+      if (isInitializedRef.current) {
+        return; // Уже инициализирован
+      }
+
       try {
-        console.log('Initializing call...', { isWebSocketConnected, isIncoming });
+        console.log('Initializing call...', { 
+          isWebSocketConnected, 
+          isIncoming, 
+          isInitialized: isInitializedRef.current 
+        });
         
         if (isWebSocketConnected) {
-          // Всегда запускаем распознавание речи
-          startListening();
+          isInitializedRef.current = true;
           
-          // Для исходящих звонков запускаем WebRTC
+          // Для исходящих звонков сначала запускаем WebRTC
           if (!isIncoming) {
             console.log('Starting WebRTC call...');
             await startCall();
+            // Запускаем распознавание речи после успешного запуска WebRTC
+            console.log('Starting speech recognition after WebRTC...');
+            setTimeout(() => {
+              startListening();
+            }, 2000); // Увеличиваем задержку до 2 секунд
+          } else {
+            // Для входящих звонков сразу запускаем распознавание речи
+            startListening();
           }
         }
       } catch (error) {
         console.error('Error initializing call:', error);
         setError('Ошибка инициализации звонка');
+        isInitializedRef.current = false; // Сбрасываем флаг при ошибке
       }
     };
 
-    if (isWebSocketConnected) {
+    if (isWebSocketConnected && !isInitializedRef.current) {
       initializeCall();
     }
 
     return () => {
-      if (isWebSocketConnected) {
-        stopListening();
-      }
+      // Сбрасываем инициализацию при размонтировании
+      isInitializedRef.current = false;
     };
-  }, [isWebSocketConnected, isIncoming, startCall, startListening, stopListening]);
+  }, [isWebSocketConnected, isIncoming]); // Убираем функции из зависимостей
 
   const handleEndCall = useCallback(() => {
     // Отправляем сигнал завершения звонка
@@ -209,6 +227,7 @@ export const VideoCallWithTranscript: React.FC<VideoCallWithTranscriptProps> = (
     endCall();
     stopListening();
     setIsCallActive(false);
+    isInitializedRef.current = false; // Сбрасываем флаг инициализации
     onEndCall();
   }, [ws, endCall, stopListening, onEndCall]);
 
