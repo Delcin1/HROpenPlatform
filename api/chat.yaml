@@ -194,7 +194,7 @@ components:
         users:
           type: array
           items:
-            type: string
+            $ref: '#/components/schemas/ChatUser'
         created_at:
           type: string
           format: date-time
@@ -202,12 +202,26 @@ components:
           type: string
           format: date-time
 
+    ChatUser:
+      type: object
+      required:
+        - id
+        - description
+      properties:
+        id:
+          type: string
+        description:
+          type: string
+        avatar:
+          type: string
+          nullable: true
+
     Message:
       type: object
       required:
         - id
         - chat_id
-        - user_id
+        - user
         - text
         - created_at
       properties:
@@ -215,8 +229,8 @@ components:
           type: string
         chat_id:
           type: string
-        user_id:
-          type: string
+        user:
+          $ref: '#/components/schemas/ChatUser'
         text:
           type: string
         created_at:

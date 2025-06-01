@@ -96,7 +96,7 @@ const getChatMessages = `-- name: GetChatMessages :many
 SELECT id, chat_id, user_id, text, created_at
 FROM chat.messages
 WHERE chat_id = $1
-ORDER BY created_at DESC
+ORDER BY created_at ASC
 LIMIT $2 OFFSET $3
 `
 

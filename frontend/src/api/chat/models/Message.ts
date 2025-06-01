@@ -2,10 +2,11 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { ChatUser } from './ChatUser';
 export type Message = {
     id: string;
     chat_id: string;
-    user_id: string;
+    user: ChatUser;
     text: string;
     created_at: string;
 };

@@ -52,11 +52,27 @@ func (s *Server) CreateChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	users := make([]ChatUser, len(chat.Users))
+
+	for i, user := range chat.Users {
+		profile, err := s.services.Profile.GetProfile(ctx, user)
+		if err != nil {
+			s.log.ErrorContext(ctx, "chatServer.CreateChat failed to get profile", "error", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+		users[i] = ChatUser{
+			Id: profile.Guid,
+			Description: profile.Description,
+			Avatar: profile.Avatar,
+		}
+	}
+
 	resp := Chat{
 		CreatedAt: chat.CreatedAt,
 		Id:        chat.ID,
 		UpdatedAt: chat.UpdatedAt,
-		Users:     chat.Users,
+		Users:     users,
 	}
 
 	w.WriteHeader(http.StatusCreated)
@@ -90,12 +106,22 @@ func (s *Server) GetChatMessages(w http.ResponseWriter, r *http.Request, chatId 
 
 	resp := make([]Message, len(messages))
 	for i, message := range messages {
+		profile, err := s.services.Profile.GetProfile(ctx, message.UserID)
+		if err != nil {
+			s.log.ErrorContext(ctx, "chatServer.GetChatMessages failed to get profile", "error", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
 		resp[i] = Message{
 			ChatId:    message.ChatID,
 			CreatedAt: message.CreatedAt,
 			Id:        message.ID,
 			Text:      message.Text,
-			UserId:    message.UserID,
+			User: ChatUser{
+				Id: profile.Guid,
+				Description: profile.Description,
+				Avatar: profile.Avatar,
+			},
 		}
 	}
 
@@ -123,12 +149,37 @@ func (s *Server) GetUserChats(w http.ResponseWriter, r *http.Request) {
 	for i, chat := range chats {
 		var lastMessage *Message
 		if chat.LastMessage != nil {
+			profile, err := s.services.Profile.GetProfile(ctx, chat.LastMessage.UserID)
+			if err != nil {
+				s.log.ErrorContext(ctx, "chatServer.GetUserChats failed to get profile", "error", err)
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				return
+			}
 			lastMessage = &Message{
 				ChatId:    chat.LastMessage.ChatID,
 				CreatedAt: chat.LastMessage.CreatedAt,
 				Id:        chat.LastMessage.ID,
 				Text:      chat.LastMessage.Text,
-				UserId:    chat.LastMessage.UserID,
+				User: ChatUser{
+					Id: profile.Guid,
+					Description: profile.Description,
+					Avatar: profile.Avatar,
+				},
+			}
+		}
+
+		users := make([]ChatUser, len(chat.Chat.Users))
+		for j, user := range chat.Chat.Users {
+			profile, err := s.services.Profile.GetProfile(ctx, user)
+			if err != nil {
+				s.log.ErrorContext(ctx, "chatServer.GetUserChats failed to get profile", "error", err)
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				return
+			}
+			users[j] = ChatUser{
+				Id: profile.Guid,
+				Description: profile.Description,
+				Avatar: profile.Avatar,
 			}
 		}
 
@@ -137,7 +188,7 @@ func (s *Server) GetUserChats(w http.ResponseWriter, r *http.Request) {
 				CreatedAt: chat.Chat.CreatedAt,
 				Id:        chat.Chat.ID,
 				UpdatedAt: chat.Chat.UpdatedAt,
-				Users:     chat.Chat.Users,
+				Users:     users,
 			},
 			LastMessage: lastMessage,
 			UnreadCount: chat.UnreadCount,
@@ -171,12 +222,23 @@ func (s *Server) SendMessage(w http.ResponseWriter, r *http.Request, chatId stri
 		return
 	}
 
+	profile, err := s.services.Profile.GetProfile(ctx, message.UserID)
+	if err != nil {
+		s.log.ErrorContext(ctx, "chatServer.SendMessage failed to get profile", "error", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
 	resp := Message{
 		ChatId:    message.ChatID,
 		CreatedAt: message.CreatedAt,
 		Id:        message.ID,
 		Text:      message.Text,
-		UserId:    message.UserID,
+		User: ChatUser{
+			Id: profile.Guid,
+			Description: profile.Description,
+			Avatar: profile.Avatar,
+		},
 	}
 
 	w.WriteHeader(http.StatusCreated)

@@ -29,10 +29,17 @@ const (
 
 // Chat defines model for Chat.
 type Chat struct {
-	CreatedAt time.Time `json:"created_at"`
-	Id        string    `json:"id"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Users     []string  `json:"users"`
+	CreatedAt time.Time  `json:"created_at"`
+	Id        string     `json:"id"`
+	UpdatedAt time.Time  `json:"updated_at"`
+	Users     []ChatUser `json:"users"`
+}
+
+// ChatUser defines model for ChatUser.
+type ChatUser struct {
+	Avatar      *string `json:"avatar"`
+	Description string  `json:"description"`
+	Id          string  `json:"id"`
 }
 
 // ChatWithLastMessage defines model for ChatWithLastMessage.
@@ -53,7 +60,7 @@ type Message struct {
 	CreatedAt time.Time `json:"created_at"`
 	Id        string    `json:"id"`
 	Text      string    `json:"text"`
-	UserId    string    `json:"user_id"`
+	User      ChatUser  `json:"user"`
 }
 
 // SendMessageRequest defines model for SendMessageRequest.

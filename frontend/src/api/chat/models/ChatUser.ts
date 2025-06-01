@@ -2,11 +2,9 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { ChatUser } from './ChatUser';
-export type Chat = {
+export type ChatUser = {
     id: string;
-    users: Array<ChatUser>;
-    created_at: string;
-    updated_at: string;
+    description: string;
+    avatar?: string | null;
 };
 

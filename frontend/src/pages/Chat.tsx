@@ -206,12 +206,12 @@ export const Chat = () => {
               >
                 <ListItemAvatar>
                   <Badge badgeContent={chat.unread_count} color="primary">
-                    <Avatar />
+                    <Avatar src={chat.chat.users?.[0]?.avatar || undefined} />
                   </Badge>
                 </ListItemAvatar>
                 <ListItemText
-                  primary={chat.chat.users.join(', ')}
-                  secondary={chat.last_message?.text}
+                  primary={chat.chat.users?.map(user => user.description).join(', ') || 'Без названия'}
+                  secondary={chat.last_message?.text || 'Нет сообщений'}
                 />
               </ListItem>
             ))}
@@ -224,7 +224,7 @@ export const Chat = () => {
             <>
               <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
                 <Typography variant="h6">
-                  {Array.isArray(chats) && chats.find((c) => c.chat.id === selectedChat)?.chat.users.join(', ')}
+                  {Array.isArray(chats) && chats.find((c) => c.chat.id === selectedChat)?.chat.users?.map(user => user.description).join(', ') || 'Без названия'}
                 </Typography>
               </Box>
 
@@ -249,6 +249,15 @@ export const Chat = () => {
                           alignItems: 'flex-start',
                         }}
                       >
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                          <Avatar
+                            src={message.user?.avatar || undefined}
+                            sx={{ width: 24, height: 24, mr: 1 }}
+                          />
+                          <Typography variant="subtitle2" color="text.secondary">
+                            {message.user?.description || 'Неизвестный пользователь'}
+                          </Typography>
+                        </Box>
                         <Typography variant="caption" color="text.secondary">
                           {new Date(message.created_at).toLocaleString()}
                         </Typography>
