@@ -241,6 +241,40 @@ func (s *Server) GetJobApplications(w http.ResponseWriter, r *http.Request, jobI
 	json.NewEncoder(w).Encode(applications)
 }
 
+func (s *Server) UpdateJobApplicationStatus(w http.ResponseWriter, r *http.Request, jobId string, applicantId string) {
+	userGUID := r.Context().Value(mw.UserIDKey).(string)
+	if userGUID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var req models.UpdateApplicationStatusRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	application, err := s.services.Job.UpdateJobApplicationStatus(r.Context(), jobId, applicantId, userGUID, req.Status)
+	if err != nil {
+		s.log.ErrorContext(r.Context(), "Failed to update application status", "error", err, "job_id", jobId, "applicant_id", applicantId)
+		switch err.Error() {
+		case "job not found":
+			http.Error(w, "Job not found", http.StatusNotFound)
+		case "application not found":
+			http.Error(w, "Application not found", http.StatusNotFound)
+		case "access denied: not job author":
+			http.Error(w, "Access denied", http.StatusForbidden)
+		default:
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(application)
+}
+
 func NewServer(services *service.Services, log *slog.Logger) ServerInterface {
 	return &Server{services: services, log: log}
 }

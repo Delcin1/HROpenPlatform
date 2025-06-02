@@ -110,7 +110,7 @@ apiClient.interceptors.response.use(
         console.error('Token refresh failed:', refreshError);
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
-        // Let AuthContext handle the redirect instead of forcing it here
+        window.location.href = '/login';
         return Promise.reject(refreshError);
       }
     }

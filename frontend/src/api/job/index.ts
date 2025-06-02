@@ -14,6 +14,7 @@ export { Job } from './models/Job';
 export { JobApplication } from './models/JobApplication';
 export type { JobDetails } from './models/JobDetails';
 export type { JobWithApplications } from './models/JobWithApplications';
+export { UpdateApplicationStatusRequest } from './models/UpdateApplicationStatusRequest';
 export { UpdateJobRequest } from './models/UpdateJobRequest';
 
 export { JobService } from './services/JobService';

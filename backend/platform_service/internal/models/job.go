@@ -75,3 +75,7 @@ type UpdateJobRequest struct {
 	Requirements   string `json:"requirements"`
 	Status         string `json:"status"`
 }
+
+type UpdateApplicationStatusRequest struct {
+	Status string `json:"status"`
+}

@@ -44,6 +44,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { JobService } from '../api/job/services/JobService';
 import type { JobDetails as JobDetailsType } from '../api/job/models/JobDetails';
 import { JobApplication } from '../api/job/models/JobApplication';
+import { UpdateApplicationStatusRequest } from '../api/job/models/UpdateApplicationStatusRequest';
 
 export const JobDetails = () => {
   const { jobId } = useParams<{ jobId: string }>();
@@ -104,8 +105,42 @@ export const JobDetails = () => {
   };
 
   const handleViewProfile = (profileId: string) => {
-    navigate(`/profile/${profileId}`);
+    navigate(`/profiles/${profileId}`);
     handleMenuClose();
+  };
+
+  const handleAcceptApplication = async (application: JobApplication) => {
+    if (!jobId) return;
+
+    try {
+      await JobService.updateJobApplicationStatus(
+        jobId, 
+        application.applicant_id, 
+        { status: UpdateApplicationStatusRequest.status.ACCEPTED }
+      );
+      await loadJobDetails(); // Refresh to show updated status
+      handleMenuClose();
+    } catch (err) {
+      console.error('Error accepting application:', err);
+      setError('Ошибка при принятии заявки');
+    }
+  };
+
+  const handleRejectApplication = async (application: JobApplication) => {
+    if (!jobId) return;
+
+    try {
+      await JobService.updateJobApplicationStatus(
+        jobId, 
+        application.applicant_id, 
+        { status: UpdateApplicationStatusRequest.status.REJECTED }
+      );
+      await loadJobDetails(); // Refresh to show updated status
+      handleMenuClose();
+    } catch (err) {
+      console.error('Error rejecting application:', err);
+      setError('Ошибка при отклонении заявки');
+    }
   };
 
   const formatSalary = (salaryFrom?: number, salaryTo?: number) => {
@@ -371,8 +406,9 @@ export const JobDetails = () => {
           Посмотреть профиль
         </MenuItem>
         <MenuItem onClick={() => {
-          // TODO: Implement accept application
-          handleMenuClose();
+          if (selectedApplication) {
+            handleAcceptApplication(selectedApplication);
+          }
         }}>
           <ListItemIcon>
             <AcceptIcon fontSize="small" />
@@ -380,8 +416,9 @@ export const JobDetails = () => {
           Принять
         </MenuItem>
         <MenuItem onClick={() => {
-          // TODO: Implement reject application
-          handleMenuClose();
+          if (selectedApplication) {
+            handleRejectApplication(selectedApplication);
+          }
         }}>
           <ListItemIcon>
             <RejectIcon fontSize="small" />

@@ -53,6 +53,14 @@ const (
 	JobApplicationStatusReviewed JobApplicationStatus = "reviewed"
 )
 
+// Defines values for UpdateApplicationStatusRequestStatus.
+const (
+	Accepted UpdateApplicationStatusRequestStatus = "accepted"
+	Pending  UpdateApplicationStatusRequestStatus = "pending"
+	Rejected UpdateApplicationStatusRequestStatus = "rejected"
+	Reviewed UpdateApplicationStatusRequestStatus = "reviewed"
+)
+
 // Defines values for UpdateJobRequestEmploymentType.
 const (
 	Contract   UpdateJobRequestEmploymentType = "contract"
@@ -153,6 +161,14 @@ type JobWithApplications struct {
 	Job               Job `json:"job"`
 }
 
+// UpdateApplicationStatusRequest defines model for UpdateApplicationStatusRequest.
+type UpdateApplicationStatusRequest struct {
+	Status UpdateApplicationStatusRequestStatus `json:"status"`
+}
+
+// UpdateApplicationStatusRequestStatus defines model for UpdateApplicationStatusRequest.Status.
+type UpdateApplicationStatusRequestStatus string
+
 // UpdateJobRequest defines model for UpdateJobRequest.
 type UpdateJobRequest struct {
 	CompanyName    string                         `json:"company_name"`
@@ -197,6 +213,9 @@ type CreateJobJSONRequestBody = CreateJobRequest
 // UpdateJobJSONRequestBody defines body for UpdateJob for application/json ContentType.
 type UpdateJobJSONRequestBody = UpdateJobRequest
 
+// UpdateJobApplicationStatusJSONRequestBody defines body for UpdateJobApplicationStatus for application/json ContentType.
+type UpdateJobApplicationStatusJSONRequestBody = UpdateApplicationStatusRequest
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Get all jobs with search
@@ -220,6 +239,9 @@ type ServerInterface interface {
 	// Get job applications (for job author)
 	// (GET /api/v1/job/{job_id}/applications)
 	GetJobApplications(w http.ResponseWriter, r *http.Request, jobId string, params GetJobApplicationsParams)
+	// Update job application status (for job author)
+	// (PUT /api/v1/job/{job_id}/applications/{applicant_id}/status)
+	UpdateJobApplicationStatus(w http.ResponseWriter, r *http.Request, jobId string, applicantId string)
 	// Check application status
 	// (GET /api/v1/job/{job_id}/apply)
 	GetApplicationStatus(w http.ResponseWriter, r *http.Request, jobId string)
@@ -271,6 +293,12 @@ func (_ Unimplemented) UpdateJob(w http.ResponseWriter, r *http.Request, jobId s
 // Get job applications (for job author)
 // (GET /api/v1/job/{job_id}/applications)
 func (_ Unimplemented) GetJobApplications(w http.ResponseWriter, r *http.Request, jobId string, params GetJobApplicationsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Update job application status (for job author)
+// (PUT /api/v1/job/{job_id}/applications/{applicant_id}/status)
+func (_ Unimplemented) UpdateJobApplicationStatus(w http.ResponseWriter, r *http.Request, jobId string, applicantId string) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -506,6 +534,40 @@ func (siw *ServerInterfaceWrapper) GetJobApplications(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
+// UpdateJobApplicationStatus operation middleware
+func (siw *ServerInterfaceWrapper) UpdateJobApplicationStatus(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "job_id" -------------
+	var jobId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "job_id", chi.URLParam(r, "job_id"), &jobId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "job_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "applicant_id" -------------
+	var applicantId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "applicant_id", chi.URLParam(r, "applicant_id"), &applicantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "applicant_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateJobApplicationStatus(w, r, jobId, applicantId)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetApplicationStatus operation middleware
 func (siw *ServerInterfaceWrapper) GetApplicationStatus(w http.ResponseWriter, r *http.Request) {
 
@@ -689,6 +751,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/api/v1/job/{job_id}/applications", wrapper.GetJobApplications)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/api/v1/job/{job_id}/applications/{applicant_id}/status", wrapper.UpdateJobApplicationStatus)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/api/v1/job/{job_id}/apply", wrapper.GetApplicationStatus)

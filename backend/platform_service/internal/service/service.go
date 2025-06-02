@@ -78,6 +78,7 @@ type JobService interface {
 	ApplyToJob(ctx context.Context, jobID, userID string) error
 	GetApplicationStatus(ctx context.Context, jobID, userID string) (*models.ApplicationStatus, error)
 	GetJobApplications(ctx context.Context, jobID, userID string, limit, offset int) ([]models.JobApplication, error)
+	UpdateJobApplicationStatus(ctx context.Context, jobID, applicantID, authorID, status string) (*models.JobApplication, error)
 }
 
 type Services struct {

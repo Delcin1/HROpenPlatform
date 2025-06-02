@@ -270,6 +270,45 @@ paths:
         '500':
           description: Internal Server Error
 
+  /api/v1/job/{job_id}/applications/{applicant_id}/status:
+    put:
+      tags:
+        - job
+      summary: Update job application status (for job author)
+      operationId: updateJobApplicationStatus
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: applicant_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateApplicationStatusRequest'
+      responses:
+        '200':
+          description: Application status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobApplication'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Job or application not found
+        '500':
+          description: Internal Server Error
+
 components:
   schemas:
     Job:
@@ -475,4 +514,13 @@ components:
           type: string
         status:
           type: string
-          enum: [active, paused, closed] 
+          enum: [active, paused, closed]
+
+    UpdateApplicationStatusRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [pending, reviewed, accepted, rejected] 

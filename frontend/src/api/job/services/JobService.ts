@@ -8,6 +8,7 @@ import type { Job } from '../models/Job';
 import type { JobApplication } from '../models/JobApplication';
 import type { JobDetails } from '../models/JobDetails';
 import type { JobWithApplications } from '../models/JobWithApplications';
+import type { UpdateApplicationStatusRequest } from '../models/UpdateApplicationStatusRequest';
 import type { UpdateJobRequest } from '../models/UpdateJobRequest';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
@@ -226,6 +227,36 @@ export class JobService {
                 401: `Unauthorized`,
                 403: `Forbidden`,
                 404: `Job not found`,
+                500: `Internal Server Error`,
+            },
+        });
+    }
+    /**
+     * Update job application status (for job author)
+     * @param jobId
+     * @param applicantId
+     * @param requestBody
+     * @returns JobApplication Application status updated
+     * @throws ApiError
+     */
+    public static updateJobApplicationStatus(
+        jobId: string,
+        applicantId: string,
+        requestBody: UpdateApplicationStatusRequest,
+    ): CancelablePromise<JobApplication> {
+        return __request(OpenAPI, {
+            method: 'PUT',
+            url: '/api/v1/job/{job_id}/applications/{applicant_id}/status',
+            path: {
+                'job_id': jobId,
+                'applicant_id': applicantId,
+            },
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                401: `Unauthorized`,
+                403: `Forbidden`,
+                404: `Job or application not found`,
                 500: `Internal Server Error`,
             },
         });

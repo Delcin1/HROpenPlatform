@@ -22,6 +22,7 @@ type Service interface {
 	ApplyToJob(ctx context.Context, jobID, userID string) error
 	GetApplicationStatus(ctx context.Context, jobID, userID string) (*models.ApplicationStatus, error)
 	GetJobApplications(ctx context.Context, jobID, userID string, limit, offset int) ([]models.JobApplication, error)
+	UpdateJobApplicationStatus(ctx context.Context, jobID, applicantID, authorID, status string) (*models.JobApplication, error)
 }
 
 type service struct {
@@ -478,6 +479,96 @@ func (s *service) mapJobApplicationFromDB(app repository_job.GetJobApplicationsR
 		AppliedAt: app.AppliedAt,
 		Status:    app.Status,
 	}
+}
+
+func (s *service) UpdateJobApplicationStatus(ctx context.Context, jobID, applicantID, authorID, status string) (*models.JobApplication, error) {
+	jobUUID, err := uuid.Parse(jobID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid job ID: %w", err)
+	}
+
+	applicantUUID, err := uuid.Parse(applicantID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid applicant ID: %w", err)
+	}
+
+	authorUUID, err := uuid.Parse(authorID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid author ID: %w", err)
+	}
+
+	var updatedApplication repository_job.JobJobApplication
+	var applicantProfile repository_job.GetJobApplicationsRow
+
+	err = s.repo.TxManager.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		// Проверяем, что пользователь является автором вакансии
+		job, err := s.repo.Job.GetJobByID(ctx, tx, jobUUID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return fmt.Errorf("job not found")
+			}
+			return fmt.Errorf("failed to get job: %w", err)
+		}
+
+		if job.AuthorID != authorUUID {
+			return fmt.Errorf("access denied: not job author")
+		}
+
+		// Обновляем статус заявки
+		updatedApplication, err = s.repo.Job.UpdateJobApplicationStatus(ctx, tx, repository_job.UpdateJobApplicationStatusParams{
+			JobID:       jobUUID,
+			ApplicantID: applicantUUID,
+			Status:      status,
+		})
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return fmt.Errorf("application not found")
+			}
+			return fmt.Errorf("failed to update application status: %w", err)
+		}
+
+		// Получаем данные профиля соискателя
+		applications, err := s.repo.Job.GetJobApplications(ctx, tx, repository_job.GetJobApplicationsParams{
+			JobID:  jobUUID,
+			Limit:  1,
+			Offset: 0,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to get application details: %w", err)
+		}
+
+		// Ищем нужную заявку
+		for _, app := range applications {
+			if app.ApplicantID == applicantUUID {
+				applicantProfile = app
+				break
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var avatar *string
+	if applicantProfile.ApplicantAvatar.Valid {
+		avatar = &applicantProfile.ApplicantAvatar.String
+	}
+
+	return &models.JobApplication{
+		ID:          updatedApplication.ID.String(),
+		JobID:       updatedApplication.JobID.String(),
+		ApplicantID: updatedApplication.ApplicantID.String(),
+		ApplicantProfile: models.ApplicantProfile{
+			ID:          updatedApplication.ApplicantID.String(),
+			Description: applicantProfile.ApplicantDescription,
+			Email:       applicantProfile.ApplicantEmail,
+			Avatar:      avatar,
+		},
+		AppliedAt: updatedApplication.AppliedAt,
+		Status:    updatedApplication.Status,
+	}, nil
 }
 
 func NewService(repo *repository.Repositories) Service {
