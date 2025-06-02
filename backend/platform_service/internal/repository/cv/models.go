@@ -6,6 +6,7 @@ package cv
 
 import (
 	"database/sql"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -16,4 +17,16 @@ type CvCv struct {
 	Link      string
 	CreatedAt sql.NullTime
 	UpdatedAt sql.NullTime
+}
+
+type CvResumeDatabase struct {
+	ID              uuid.UUID
+	UserID          uuid.UUID
+	CandidateName   string
+	CandidateAge    sql.NullInt32
+	ExperienceYears string
+	FileUrl         string
+	Analysis        string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }

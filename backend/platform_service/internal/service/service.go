@@ -9,12 +9,14 @@ import (
 	"PlatformService/internal/service/chat"
 	"PlatformService/internal/service/company"
 	"PlatformService/internal/service/cv"
+	"PlatformService/internal/service/deepseek"
 	"PlatformService/internal/service/job"
 	"PlatformService/internal/service/profile"
 	"PlatformService/internal/service/storage"
 	"context"
 	"io"
 	"log/slog"
+	"mime/multipart"
 )
 
 type AuthService interface {
@@ -48,6 +50,9 @@ type CompanyService interface {
 type CVService interface {
 	SaveCVLink(ctx context.Context, userGUID string, link string) error
 	GetCVLink(ctx context.Context, userGUID string) (string, error)
+	UploadResumeDatabase(ctx context.Context, userGUID string, archive *multipart.FileHeader) (*models.UploadDatabaseResponse, error)
+	GetResumeDatabase(ctx context.Context, userGUID string, limit, offset int) ([]models.ResumeRecord, error)
+	MatchCandidatesFromDatabase(ctx context.Context, userGUID, jobID string) (*models.MatchCandidatesResponse, error)
 }
 
 type StorageService interface {
@@ -82,14 +87,15 @@ type JobService interface {
 }
 
 type Services struct {
-	Auth    auth.Service
-	Profile profile.Service
-	Company company.Service
-	CV      cv.Service
-	Chat    chat.Service
-	Call    call.Service
-	Job     job.Service
-	Storage storage.Service
+	Auth     auth.Service
+	Profile  profile.Service
+	Company  company.Service
+	CV       cv.Service
+	Chat     chat.Service
+	Call     call.Service
+	Job      job.Service
+	Storage  storage.Service
+	DeepSeek deepseek.Service
 }
 
 func NewServices(cfg *config.Config, repo *repository.Repositories, log *slog.Logger) (*Services, error) {
@@ -98,14 +104,17 @@ func NewServices(cfg *config.Config, repo *repository.Repositories, log *slog.Lo
 		return nil, err
 	}
 
+	deepSeekService := deepseek.NewService(cfg)
+
 	return &Services{
-		Auth:    auth.NewService(cfg, repo),
-		Profile: profile.NewService(repo),
-		Company: company.NewService(repo),
-		CV:      cv.NewService(repo),
-		Chat:    chat.NewService(repo),
-		Call:    call.NewService(repo, log),
-		Job:     job.NewService(repo),
-		Storage: storageService,
+		Auth:     auth.NewService(cfg, repo),
+		Profile:  profile.NewService(repo),
+		Company:  company.NewService(repo),
+		CV:       cv.NewService(repo, storageService, deepSeekService, cfg.ServerFullAddress),
+		Chat:     chat.NewService(repo),
+		Call:     call.NewService(repo, log),
+		Job:      job.NewService(repo),
+		Storage:  storageService,
+		DeepSeek: deepSeekService,
 	}, nil
 }

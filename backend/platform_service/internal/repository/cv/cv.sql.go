@@ -7,6 +7,7 @@ package cv
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 )
@@ -40,12 +41,75 @@ func (q *Queries) CreateCV(ctx context.Context, db DBTX, arg CreateCVParams) (Cv
 	return i, err
 }
 
+const createResumeRecord = `-- name: CreateResumeRecord :one
+INSERT INTO cv.resume_database (user_id, candidate_name, candidate_age, experience_years, file_url, analysis)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, user_id, candidate_name, candidate_age, experience_years, file_url, analysis, created_at, updated_at
+`
+
+type CreateResumeRecordParams struct {
+	UserID          uuid.UUID
+	CandidateName   string
+	CandidateAge    sql.NullInt32
+	ExperienceYears string
+	FileUrl         string
+	Analysis        string
+}
+
+func (q *Queries) CreateResumeRecord(ctx context.Context, db DBTX, arg CreateResumeRecordParams) (CvResumeDatabase, error) {
+	row := db.QueryRow(ctx, createResumeRecord,
+		arg.UserID,
+		arg.CandidateName,
+		arg.CandidateAge,
+		arg.ExperienceYears,
+		arg.FileUrl,
+		arg.Analysis,
+	)
+	var i CvResumeDatabase
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.CandidateName,
+		&i.CandidateAge,
+		&i.ExperienceYears,
+		&i.FileUrl,
+		&i.Analysis,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const deleteCV = `-- name: DeleteCV :exec
 DELETE FROM cv.cv WHERE guid = $1
 `
 
 func (q *Queries) DeleteCV(ctx context.Context, db DBTX, guid uuid.UUID) error {
 	_, err := db.Exec(ctx, deleteCV, guid)
+	return err
+}
+
+const deleteCVLink = `-- name: DeleteCVLink :exec
+DELETE FROM cv.cv WHERE user_guid = $1
+`
+
+func (q *Queries) DeleteCVLink(ctx context.Context, db DBTX, userGuid string) error {
+	_, err := db.Exec(ctx, deleteCVLink, userGuid)
+	return err
+}
+
+const deleteResumeRecord = `-- name: DeleteResumeRecord :exec
+DELETE FROM cv.resume_database
+WHERE id = $1 AND user_id = $2
+`
+
+type DeleteResumeRecordParams struct {
+	ID     uuid.UUID
+	UserID uuid.UUID
+}
+
+func (q *Queries) DeleteResumeRecord(ctx context.Context, db DBTX, arg DeleteResumeRecordParams) error {
+	_, err := db.Exec(ctx, deleteResumeRecord, arg.ID, arg.UserID)
 	return err
 }
 
@@ -81,6 +145,151 @@ func (q *Queries) GetCVByUserGUID(ctx context.Context, db DBTX, userGuid string)
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const getCVLink = `-- name: GetCVLink :one
+SELECT link FROM cv.cv WHERE user_guid = $1 ORDER BY created_at DESC LIMIT 1
+`
+
+func (q *Queries) GetCVLink(ctx context.Context, db DBTX, userGuid string) (string, error) {
+	row := db.QueryRow(ctx, getCVLink, userGuid)
+	var link string
+	err := row.Scan(&link)
+	return link, err
+}
+
+const getResumeByID = `-- name: GetResumeByID :one
+SELECT id, user_id, candidate_name, candidate_age, experience_years, file_url, analysis, created_at, updated_at FROM cv.resume_database
+WHERE id = $1
+`
+
+func (q *Queries) GetResumeByID(ctx context.Context, db DBTX, id uuid.UUID) (CvResumeDatabase, error) {
+	row := db.QueryRow(ctx, getResumeByID, id)
+	var i CvResumeDatabase
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.CandidateName,
+		&i.CandidateAge,
+		&i.ExperienceYears,
+		&i.FileUrl,
+		&i.Analysis,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getResumesByUserID = `-- name: GetResumesByUserID :many
+SELECT id, user_id, candidate_name, candidate_age, experience_years, file_url, analysis, created_at, updated_at FROM cv.resume_database
+WHERE user_id = $1
+ORDER BY created_at DESC
+LIMIT $2 OFFSET $3
+`
+
+type GetResumesByUserIDParams struct {
+	UserID uuid.UUID
+	Limit  int32
+	Offset int32
+}
+
+func (q *Queries) GetResumesByUserID(ctx context.Context, db DBTX, arg GetResumesByUserIDParams) ([]CvResumeDatabase, error) {
+	rows, err := db.Query(ctx, getResumesByUserID, arg.UserID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CvResumeDatabase
+	for rows.Next() {
+		var i CvResumeDatabase
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.CandidateName,
+			&i.CandidateAge,
+			&i.ExperienceYears,
+			&i.FileUrl,
+			&i.Analysis,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const saveCVLink = `-- name: SaveCVLink :exec
+INSERT INTO cv.cv (guid, user_guid, link, created_at, updated_at)
+VALUES (gen_random_uuid(), $1, $2, NOW(), NOW())
+ON CONFLICT (user_guid) DO UPDATE
+SET link = $2, updated_at = NOW()
+`
+
+type SaveCVLinkParams struct {
+	UserGuid string
+	Link     string
+}
+
+func (q *Queries) SaveCVLink(ctx context.Context, db DBTX, arg SaveCVLinkParams) error {
+	_, err := db.Exec(ctx, saveCVLink, arg.UserGuid, arg.Link)
+	return err
+}
+
+const searchResumesByUserID = `-- name: SearchResumesByUserID :many
+SELECT id, user_id, candidate_name, candidate_age, experience_years, file_url, analysis, created_at, updated_at FROM cv.resume_database
+WHERE user_id = $1 AND (
+    to_tsvector('russian', analysis) @@ plainto_tsquery('russian', $2)
+    OR candidate_name ILIKE '%' || $2 || '%'
+)
+ORDER BY created_at DESC
+LIMIT $3 OFFSET $4
+`
+
+type SearchResumesByUserIDParams struct {
+	UserID         uuid.UUID
+	PlaintoTsquery string
+	Limit          int32
+	Offset         int32
+}
+
+func (q *Queries) SearchResumesByUserID(ctx context.Context, db DBTX, arg SearchResumesByUserIDParams) ([]CvResumeDatabase, error) {
+	rows, err := db.Query(ctx, searchResumesByUserID,
+		arg.UserID,
+		arg.PlaintoTsquery,
+		arg.Limit,
+		arg.Offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CvResumeDatabase
+	for rows.Next() {
+		var i CvResumeDatabase
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.CandidateName,
+			&i.CandidateAge,
+			&i.ExperienceYears,
+			&i.FileUrl,
+			&i.Analysis,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateCV = `-- name: UpdateCV :one

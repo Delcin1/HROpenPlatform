@@ -25,6 +25,8 @@ import {
   Menu,
   MenuItem,
   ListItemIcon,
+  Grid,
+  Paper,
 } from '@mui/material';
 import {
   LocationOn as LocationIcon,
@@ -39,12 +41,18 @@ import {
   CheckCircleOutline as AcceptIcon,
   Cancel as RejectIcon,
   Visibility as ViewIcon,
+  Search as SearchIcon,
+  Star as StarIcon,
+  OpenInNew as OpenInNewIcon,
 } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import { JobService } from '../api/job/services/JobService';
+import { CvService } from '../api/cv/services/CvService';
 import type { JobDetails as JobDetailsType } from '../api/job/models/JobDetails';
 import { JobApplication } from '../api/job/models/JobApplication';
 import { UpdateApplicationStatusRequest } from '../api/job/models/UpdateApplicationStatusRequest';
+import type { MatchCandidatesResponse } from '../api/cv/models/MatchCandidatesResponse';
+import type { MatchedCandidate } from '../api/cv/models/MatchedCandidate';
 
 export const JobDetails = () => {
   const { jobId } = useParams<{ jobId: string }>();
@@ -52,10 +60,13 @@ export const JobDetails = () => {
   const [jobDetails, setJobDetails] = useState<JobDetailsType | null>(null);
   const [loading, setLoading] = useState(false);
   const [applyLoading, setApplyLoading] = useState(false);
+  const [matchLoading, setMatchLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
+  const [matchDialogOpen, setMatchDialogOpen] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<JobApplication | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [matchedCandidates, setMatchedCandidates] = useState<MatchedCandidate[]>([]);
 
   const loadJobDetails = async () => {
     if (!jobId) return;
@@ -141,6 +152,30 @@ export const JobDetails = () => {
       console.error('Error rejecting application:', err);
       setError('Ошибка при отклонении заявки');
     }
+  };
+
+  const handleMatchCandidates = async () => {
+    if (!jobId) return;
+
+    try {
+      setMatchLoading(true);
+      setError(null);
+      
+      const response: MatchCandidatesResponse = await CvService.matchCandidatesFromDatabase(jobId);
+      setMatchedCandidates(response.candidates);
+      setMatchDialogOpen(true);
+    } catch (err) {
+      console.error('Error matching candidates:', err);
+      setError('Ошибка подбора кандидатов. Возможно, у вас нет базы резюме.');
+    } finally {
+      setMatchLoading(false);
+    }
+  };
+
+  const getMatchScoreColor = (score: number) => {
+    if (score >= 80) return 'success';
+    if (score >= 60) return 'warning';
+    return 'error';
   };
 
   const formatSalary = (salaryFrom?: number, salaryTo?: number) => {
@@ -316,9 +351,19 @@ export const JobDetails = () => {
       {is_author && applications && (
         <Card>
           <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Отклики ({applications.length})
-            </Typography>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+              <Typography variant="h6">
+                Отклики ({applications.length})
+              </Typography>
+              <Button
+                variant="outlined"
+                startIcon={matchLoading ? <CircularProgress size={20} /> : <SearchIcon />}
+                onClick={handleMatchCandidates}
+                disabled={matchLoading}
+              >
+                {matchLoading ? 'Подбираем...' : 'Подобрать кандидата из моей базы'}
+              </Button>
+            </Box>
             
             {applications.length === 0 ? (
               <Box textAlign="center" py={4}>
@@ -385,6 +430,79 @@ export const JobDetails = () => {
         <DialogActions>
           <Button onClick={() => setApplyDialogOpen(false)} variant="contained">
             Понятно
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Matched Candidates Dialog */}
+      <Dialog open={matchDialogOpen} onClose={() => setMatchDialogOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          <Box display="flex" alignItems="center" gap={1}>
+            <StarIcon color="primary" />
+            Подобранные кандидаты
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {matchedCandidates.length === 0 ? (
+            <Box textAlign="center" py={4}>
+              <PersonIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+              <Typography variant="h6" gutterBottom>
+                Подходящие кандидаты не найдены
+              </Typography>
+              <Typography color="text.secondary">
+                Попробуйте загрузить больше резюме в базу или измените требования к вакансии
+              </Typography>
+            </Box>
+          ) : (
+            <Grid container spacing={2}>
+              {matchedCandidates.map((candidate, index) => (
+                <Grid item xs={12} key={candidate.resume_id}>
+                  <Paper sx={{ p: 2, border: 1, borderColor: 'divider' }}>
+                    <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+                      <Box flex={1}>
+                        <Typography variant="h6" gutterBottom>
+                          {candidate.candidate_name}
+                        </Typography>
+                        <Box display="flex" alignItems="center" gap={2} mb={1}>
+                          <Chip
+                            label={`${candidate.match_score}% соответствие`}
+                            color={getMatchScoreColor(candidate.match_score)}
+                            size="small"
+                          />
+                          <Typography variant="body2" color="text.secondary">
+                            #{index + 1} кандидат
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<OpenInNewIcon />}
+                        onClick={() => window.open(candidate.file_url, '_blank')}
+                      >
+                        Резюме
+                      </Button>
+                    </Box>
+                    
+                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                      Почему подходит:
+                    </Typography>
+                    <Typography variant="body2" sx={{ mt: 1, whiteSpace: 'pre-wrap' }}>
+                      {candidate.reasoning}
+                    </Typography>
+                  </Paper>
+                </Grid>
+              ))}
+            </Grid>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setMatchDialogOpen(false)}>Закрыть</Button>
+          <Button 
+            variant="contained" 
+            onClick={() => navigate('/resume-database')}
+          >
+            Перейти к базе резюме
           </Button>
         </DialogActions>
       </Dialog>

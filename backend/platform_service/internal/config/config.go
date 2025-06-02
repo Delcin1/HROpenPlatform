@@ -28,6 +28,11 @@ type Config struct {
 	MinioBucket    string `mapstructure:"MINIO_BUCKET" required:"true" default:"cv"`
 	MinioInsecure  bool   `mapstructure:"MINIO_INSECURE" required:"true" default:"true"`
 
+	// DeepSeek API configuration
+	DeepSeekAPIKey string `mapstructure:"DEEPSEEK_API_KEY" required:"true" default:""`
+	DeepSeekAPIURL string `mapstructure:"DEEPSEEK_API_URL" required:"true" default:"https://api.deepseek.com"`
+	DeepSeekModel  string `mapstructure:"DEEPSEEK_MODEL" required:"true" default:"deepseek-chat"`
+
 	// PSQL DB
 	// dbHost - host соединения
 	DBHost string `mapstructure:"DB_HOST" required:"true" default:"localhost"`

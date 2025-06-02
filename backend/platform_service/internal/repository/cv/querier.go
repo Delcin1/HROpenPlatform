@@ -12,9 +12,17 @@ import (
 
 type Querier interface {
 	CreateCV(ctx context.Context, db DBTX, arg CreateCVParams) (CvCv, error)
+	CreateResumeRecord(ctx context.Context, db DBTX, arg CreateResumeRecordParams) (CvResumeDatabase, error)
 	DeleteCV(ctx context.Context, db DBTX, guid uuid.UUID) error
+	DeleteCVLink(ctx context.Context, db DBTX, userGuid string) error
+	DeleteResumeRecord(ctx context.Context, db DBTX, arg DeleteResumeRecordParams) error
 	GetCVByGUID(ctx context.Context, db DBTX, guid uuid.UUID) (CvCv, error)
 	GetCVByUserGUID(ctx context.Context, db DBTX, userGuid string) (CvCv, error)
+	GetCVLink(ctx context.Context, db DBTX, userGuid string) (string, error)
+	GetResumeByID(ctx context.Context, db DBTX, id uuid.UUID) (CvResumeDatabase, error)
+	GetResumesByUserID(ctx context.Context, db DBTX, arg GetResumesByUserIDParams) ([]CvResumeDatabase, error)
+	SaveCVLink(ctx context.Context, db DBTX, arg SaveCVLinkParams) error
+	SearchResumesByUserID(ctx context.Context, db DBTX, arg SearchResumesByUserIDParams) ([]CvResumeDatabase, error)
 	UpdateCV(ctx context.Context, db DBTX, arg UpdateCVParams) (CvCv, error)
 }
 

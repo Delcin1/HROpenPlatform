@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/oapi-codegen/runtime"
@@ -23,16 +24,79 @@ type ApiUploadCVResp struct {
 	Link string `json:"link"`
 }
 
+// MatchCandidatesResponse defines model for MatchCandidatesResponse.
+type MatchCandidatesResponse struct {
+	Candidates []MatchedCandidate `json:"candidates"`
+}
+
+// MatchedCandidate defines model for MatchedCandidate.
+type MatchedCandidate struct {
+	CandidateName string `json:"candidate_name"`
+	FileUrl       string `json:"file_url"`
+
+	// MatchScore Оценка соответствия от 1 до 100
+	MatchScore int `json:"match_score"`
+
+	// Reasoning Объяснение почему кандидат подходит для вакансии
+	Reasoning string `json:"reasoning"`
+	ResumeId  string `json:"resume_id"`
+}
+
+// ResumeRecord defines model for ResumeRecord.
+type ResumeRecord struct {
+	Analysis        string    `json:"analysis"`
+	CandidateAge    *int      `json:"candidate_age"`
+	CandidateName   string    `json:"candidate_name"`
+	CreatedAt       time.Time `json:"created_at"`
+	ExperienceYears string    `json:"experience_years"`
+	FileUrl         string    `json:"file_url"`
+	Id              string    `json:"id"`
+	UpdatedAt       time.Time `json:"updated_at"`
+	UserId          string    `json:"user_id"`
+}
+
+// UploadDatabaseResponse defines model for UploadDatabaseResponse.
+type UploadDatabaseResponse struct {
+	FailedCount     int            `json:"failed_count"`
+	ProcessedCount  int            `json:"processed_count"`
+	Resumes         []ResumeRecord `json:"resumes"`
+	SuccessfulCount int            `json:"successful_count"`
+}
+
+// GetResumeDatabaseParams defines parameters for GetResumeDatabase.
+type GetResumeDatabaseParams struct {
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// UploadResumeDatabaseMultipartBody defines parameters for UploadResumeDatabase.
+type UploadResumeDatabaseMultipartBody struct {
+	// Archive ZIP архив содержащий PDF, TXT, DOC, DOCX файлы резюме
+	Archive *openapi_types.File `json:"archive,omitempty"`
+}
+
 // UploadCVMultipartBody defines parameters for UploadCV.
 type UploadCVMultipartBody struct {
 	File *openapi_types.File `json:"file,omitempty"`
 }
+
+// UploadResumeDatabaseMultipartRequestBody defines body for UploadResumeDatabase for multipart/form-data ContentType.
+type UploadResumeDatabaseMultipartRequestBody UploadResumeDatabaseMultipartBody
 
 // UploadCVMultipartRequestBody defines body for UploadCV for multipart/form-data ContentType.
 type UploadCVMultipartRequestBody UploadCVMultipartBody
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Получить базу резюме пользователя
+	// (GET /api/v1/cv/database)
+	GetResumeDatabase(w http.ResponseWriter, r *http.Request, params GetResumeDatabaseParams)
+	// Подобрать кандидатов из базы резюме для вакансии
+	// (POST /api/v1/cv/database/match/{job_id})
+	MatchCandidatesFromDatabase(w http.ResponseWriter, r *http.Request, jobId string)
+	// Загрузить архив с базой резюме
+	// (POST /api/v1/cv/database/upload)
+	UploadResumeDatabase(w http.ResponseWriter, r *http.Request)
 	// Загрузить резюме
 	// (POST /api/v1/cv/upload)
 	UploadCV(w http.ResponseWriter, r *http.Request)
@@ -44,6 +108,24 @@ type ServerInterface interface {
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
 
 type Unimplemented struct{}
+
+// Получить базу резюме пользователя
+// (GET /api/v1/cv/database)
+func (_ Unimplemented) GetResumeDatabase(w http.ResponseWriter, r *http.Request, params GetResumeDatabaseParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Подобрать кандидатов из базы резюме для вакансии
+// (POST /api/v1/cv/database/match/{job_id})
+func (_ Unimplemented) MatchCandidatesFromDatabase(w http.ResponseWriter, r *http.Request, jobId string) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Загрузить архив с базой резюме
+// (POST /api/v1/cv/database/upload)
+func (_ Unimplemented) UploadResumeDatabase(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
 
 // Загрузить резюме
 // (POST /api/v1/cv/upload)
@@ -65,6 +147,98 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// GetResumeDatabase operation middleware
+func (siw *ServerInterfaceWrapper) GetResumeDatabase(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetResumeDatabaseParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "limit", r.URL.Query(), &params.Limit)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "offset", r.URL.Query(), &params.Offset)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "offset", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetResumeDatabase(w, r, params)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// MatchCandidatesFromDatabase operation middleware
+func (siw *ServerInterfaceWrapper) MatchCandidatesFromDatabase(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "job_id" -------------
+	var jobId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "job_id", chi.URLParam(r, "job_id"), &jobId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "job_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MatchCandidatesFromDatabase(w, r, jobId)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UploadResumeDatabase operation middleware
+func (siw *ServerInterfaceWrapper) UploadResumeDatabase(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UploadResumeDatabase(w, r)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // UploadCV operation middleware
 func (siw *ServerInterfaceWrapper) UploadCV(w http.ResponseWriter, r *http.Request) {
@@ -230,6 +404,15 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/v1/cv/database", wrapper.GetResumeDatabase)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/api/v1/cv/database/match/{job_id}", wrapper.MatchCandidatesFromDatabase)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/api/v1/cv/database/upload", wrapper.UploadResumeDatabase)
+	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/api/v1/cv/upload", wrapper.UploadCV)
 	})

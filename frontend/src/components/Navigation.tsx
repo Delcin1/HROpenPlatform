@@ -27,6 +27,7 @@ import {
   Phone as PhoneIcon,
   Work as WorkIcon,
   Assignment as AssignmentIcon,
+  Storage as StorageIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -36,6 +37,7 @@ const menuItems = [
   { text: 'Профиль', icon: <PersonIcon />, path: '/profile' },
   { text: 'Компании', icon: <BusinessIcon />, path: '/companies' },
   { text: 'Загрузить резюме', icon: <DescriptionIcon />, path: '/cv' },
+  { text: 'База резюме', icon: <StorageIcon />, path: '/resume-database' },
   { text: 'Поиск профилей', icon: <SearchIcon />, path: '/search' },
   { text: 'Вакансии', icon: <WorkIcon />, path: '/jobs' },
   { text: 'Мои вакансии', icon: <AssignmentIcon />, path: '/jobs/my' },

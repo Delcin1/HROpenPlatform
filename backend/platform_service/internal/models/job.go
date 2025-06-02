@@ -23,7 +23,7 @@ type JobDetails struct {
 	IsAuthor     bool             `json:"is_author"`
 	CanApply     bool             `json:"can_apply"`
 	HasApplied   bool             `json:"has_applied"`
-	Applications []JobApplication `json:"applications,omitempty"`
+	Applications []JobApplication `json:"applications"`
 }
 
 type JobWithApplications struct {

@@ -17,6 +17,7 @@ import { Jobs } from './pages/Jobs';
 import { MyJobs } from './pages/MyJobs';
 import { JobDetails } from './pages/JobDetails';
 import { JobForm } from './pages/JobForm';
+import { ResumeDatabase } from './pages/ResumeDatabase';
 
 export const AppRoutes = () => {
   return (
@@ -38,6 +39,7 @@ export const AppRoutes = () => {
         <Route path="companies/new" element={<NewCompany />} />
         <Route path="companies/:id" element={<CompanyDetails />} />
         <Route path="cv" element={<CV />} />
+        <Route path="resume-database" element={<ResumeDatabase />} />
         <Route path="profile/:guid" element={<UserProfile />} />
         <Route path="search" element={<SearchProfiles />} />
         <Route path="chat" element={<Chat />} />

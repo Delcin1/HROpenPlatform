@@ -118,7 +118,8 @@ func (s *service) GetJobByID(ctx context.Context, jobID, userID string) (*models
 		HasApplied: hasApplied,
 	}
 
-	if isAuthor && applications != nil {
+	if isAuthor {
+		// Всегда инициализируем Applications для автора, даже если заявок нет
 		details.Applications = make([]models.JobApplication, len(applications))
 		for i, app := range applications {
 			details.Applications[i] = s.mapJobApplicationFromDB(app)
