@@ -1,10 +1,11 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { apiClient } from '../api/config';
 
 interface AuthContextType {
   isAuthenticated: boolean;
+  isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   register: (email: string, password: string, confirmPassword: string) => Promise<void>;
@@ -29,21 +30,32 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    setIsAuthenticated(false);
+    if (location.pathname !== '/login') {
+      navigate('/login', { replace: true });
+    }
+  }, [navigate, location.pathname]);
 
   useEffect(() => {
     const validateToken = async () => {
-      const token = localStorage.getItem('access_token');
-      if (!token) {
-        setIsAuthenticated(false);
-        setIsLoading(false);
-        return;
-      }
-
       try {
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+          setIsAuthenticated(false);
+          setIsLoading(false);
+          return;
+        }
+
         // Try to get profile to validate token
         await apiClient.get('/api/v1/profile');
         setIsAuthenticated(true);
       } catch (error) {
+        console.log('Token validation failed, trying refresh...');
         // If token is invalid, try to refresh
         const refreshToken = localStorage.getItem('refresh_token');
         if (refreshToken) {
@@ -59,22 +71,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             setIsAuthenticated(true);
           } catch (refreshError) {
             console.error('Token refresh failed:', refreshError);
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('refresh_token');
-            setIsAuthenticated(false);
-            navigate('/login');
+            handleLogout();
           }
         } else {
-          localStorage.removeItem('access_token');
-          setIsAuthenticated(false);
-          navigate('/login');
+          handleLogout();
         }
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     validateToken();
-  }, [navigate]);
+  }, [handleLogout]);
 
   const login = async (email: string, password: string) => {
     try {
@@ -87,7 +95,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       localStorage.setItem('access_token', access_token);
       localStorage.setItem('refresh_token', refresh_token);
       setIsAuthenticated(true);
-      navigate('/');
+      navigate('/', { replace: true });
     } catch (error: any) {
       console.error('Login failed:', error.response?.data || error);
       throw error;
@@ -100,10 +108,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     } catch (error) {
       console.error('Logout failed:', error);
     } finally {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      setIsAuthenticated(false);
-      navigate('/login');
+      handleLogout();
     }
   };
 
@@ -119,7 +124,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       localStorage.setItem('access_token', access_token);
       localStorage.setItem('refresh_token', refresh_token);
       setIsAuthenticated(true);
-      navigate('/');
+      navigate('/', { replace: true });
     } catch (error) {
       console.error('Registration failed:', error);
       throw error;
@@ -135,14 +140,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
-
   return (
     <AuthContext.Provider
       value={{
         isAuthenticated,
+        isLoading,
         login,
         logout,
         register,

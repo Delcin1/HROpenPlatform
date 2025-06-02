@@ -9,6 +9,7 @@ import (
 	"PlatformService/internal/service/chat"
 	"PlatformService/internal/service/company"
 	"PlatformService/internal/service/cv"
+	"PlatformService/internal/service/job"
 	"PlatformService/internal/service/profile"
 	"PlatformService/internal/service/storage"
 	"context"
@@ -67,6 +68,18 @@ type CallService interface {
 	Call(ctx context.Context, userGUID string, callType string) error
 }
 
+type JobService interface {
+	GetAllJobs(ctx context.Context, search *string, limit, offset int) ([]models.Job, error)
+	GetJobByID(ctx context.Context, jobID, userID string) (*models.JobDetails, error)
+	GetMyJobs(ctx context.Context, userID string, limit, offset int) ([]models.JobWithApplications, error)
+	CreateJob(ctx context.Context, userID string, req *models.CreateJobRequest) (*models.Job, error)
+	UpdateJob(ctx context.Context, jobID, userID string, req *models.UpdateJobRequest) (*models.Job, error)
+	DeleteJob(ctx context.Context, jobID, userID string) error
+	ApplyToJob(ctx context.Context, jobID, userID string) error
+	GetApplicationStatus(ctx context.Context, jobID, userID string) (*models.ApplicationStatus, error)
+	GetJobApplications(ctx context.Context, jobID, userID string, limit, offset int) ([]models.JobApplication, error)
+}
+
 type Services struct {
 	Auth    auth.Service
 	Profile profile.Service
@@ -74,6 +87,7 @@ type Services struct {
 	CV      cv.Service
 	Chat    chat.Service
 	Call    call.Service
+	Job     job.Service
 	Storage storage.Service
 }
 
@@ -90,6 +104,7 @@ func NewServices(cfg *config.Config, repo *repository.Repositories, log *slog.Lo
 		CV:      cv.NewService(repo),
 		Chat:    chat.NewService(repo),
 		Call:    call.NewService(repo, log),
+		Job:     job.NewService(repo),
 		Storage: storageService,
 	}, nil
 }

@@ -5,6 +5,7 @@ import { OpenAPI as OpenAPICV } from './cv/core/OpenAPI';
 import { OpenAPI as OpenAPIAuth } from './auth/core/OpenAPI';
 import { OpenAPI as OpenAPIChat } from './chat/core/OpenAPI';
 import { OpenAPI as OpenAPICall } from './call/core/OpenAPI';
+import { OpenAPI as OpenAPIJob } from './job/core/OpenAPI';
 
 const API_URL = 'http://localhost:8080';
 
@@ -22,6 +23,7 @@ configureOpenAPI(OpenAPICV);
 configureOpenAPI(OpenAPIAuth);
 configureOpenAPI(OpenAPIChat);
 configureOpenAPI(OpenAPICall);
+configureOpenAPI(OpenAPIJob);
 
 export const apiClient = axios.create({
   baseURL: API_URL,
@@ -108,7 +110,7 @@ apiClient.interceptors.response.use(
         console.error('Token refresh failed:', refreshError);
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
-        window.location.href = '/login';
+        // Let AuthContext handle the redirect instead of forcing it here
         return Promise.reject(refreshError);
       }
     }

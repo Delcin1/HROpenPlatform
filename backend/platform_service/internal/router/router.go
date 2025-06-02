@@ -7,6 +7,7 @@ import (
 	"PlatformService/internal/router/chat"
 	"PlatformService/internal/router/company"
 	"PlatformService/internal/router/cv"
+	"PlatformService/internal/router/job"
 	"PlatformService/internal/router/mw"
 	"PlatformService/internal/router/profile"
 	"PlatformService/internal/service"
@@ -25,6 +26,7 @@ type servers struct {
 	cv      cv.ServerInterface
 	chat    chat.ServerInterface
 	call    call.ServerInterface
+	job     job.ServerInterface
 }
 
 type Handler struct {
@@ -44,6 +46,7 @@ func NewHandler(cfg *config.Config, log *slog.Logger, services *service.Services
 			cv:      cv.NewServer(services, log, cfg),
 			chat:    chat.NewServer(services, log, cfg),
 			call:    call.NewServer(services, log, cfg),
+			job:     job.NewServer(services, log),
 		},
 	}
 }
@@ -112,6 +115,15 @@ func (h *Handler) Init() *chi.Mux {
 	call.HandlerWithOptions(h.servers.call, call.ChiServerOptions{
 		BaseRouter: router,
 		Middlewares: []call.MiddlewareFunc{
+			slogchiMW,
+			CORSMiddleware,
+			mw.AuthMiddleware(h.cfg, h.log),
+		},
+	})
+
+	job.HandlerWithOptions(h.servers.job, job.ChiServerOptions{
+		BaseRouter: router,
+		Middlewares: []job.MiddlewareFunc{
 			slogchiMW,
 			CORSMiddleware,
 			mw.AuthMiddleware(h.cfg, h.log),

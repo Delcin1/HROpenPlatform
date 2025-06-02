@@ -5,6 +5,7 @@ backend-codegen:
 	oapi-codegen --config=./backend/platform_service/oapi-codegen-configs/profile/server_cfg.yaml -o ./backend/platform_service/internal/router/profile/profile.gen.go ./api/profile.yaml
 	oapi-codegen --config=./backend/platform_service/oapi-codegen-configs/chat/server_cfg.yaml -o ./backend/platform_service/internal/router/chat/chat.gen.go ./api/chat.yaml
 	oapi-codegen --config=./backend/platform_service/oapi-codegen-configs/call/server_cfg.yaml -o ./backend/platform_service/internal/router/call/call.gen.go ./api/call.yaml
+	oapi-codegen --config=./backend/platform_service/oapi-codegen-configs/job/server_cfg.yaml -o ./backend/platform_service/internal/router/job/job.gen.go ./api/job.yaml
 
 frontend-codegen:
 	cd ./frontend && npm run generate-api

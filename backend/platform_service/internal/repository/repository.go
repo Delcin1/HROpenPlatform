@@ -9,6 +9,7 @@ import (
 	"PlatformService/internal/repository/company"
 	"PlatformService/internal/repository/cv"
 	"PlatformService/internal/repository/profile"
+	"PlatformService/internal/repository/job"
 )
 
 type Repositories struct {
@@ -18,6 +19,7 @@ type Repositories struct {
 	CV        cv.Querier
 	Chat      chat.Querier
 	Call      call.Querier
+	Job       job.Querier
 	TxManager TransactionManager
 }
 
@@ -29,6 +31,7 @@ func NewRepositories(cfg *config.Config, pool client.PostgresClient) *Repositori
 		CV:        cv.New(),
 		Chat:      chat.New(),
 		Call:      call.New(),
+		Job:       job.New(),
 		TxManager: NewTransactionManager(cfg, pool),
 	}
 }

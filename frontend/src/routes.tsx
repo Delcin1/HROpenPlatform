@@ -13,6 +13,10 @@ import { UserProfile } from './pages/UserProfile';
 import { SearchProfiles } from './pages/SearchProfiles';
 import { Chat } from './pages/Chat';
 import { CallHistory } from './pages/CallHistory';
+import { Jobs } from './pages/Jobs';
+import { MyJobs } from './pages/MyJobs';
+import { JobDetails } from './pages/JobDetails';
+import { JobForm } from './pages/JobForm';
 
 export const AppRoutes = () => {
   return (
@@ -39,6 +43,11 @@ export const AppRoutes = () => {
         <Route path="chat" element={<Chat />} />
         <Route path="chat/:chatId" element={<Chat />} />
         <Route path="calls" element={<CallHistory />} />
+        <Route path="jobs" element={<Jobs />} />
+        <Route path="jobs/my" element={<MyJobs />} />
+        <Route path="jobs/new" element={<JobForm />} />
+        <Route path="jobs/edit/:jobId" element={<JobForm />} />
+        <Route path="jobs/:jobId" element={<JobDetails />} />
       </Route>
     </Routes>
   );

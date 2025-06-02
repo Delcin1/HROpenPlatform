@@ -25,6 +25,8 @@ import {
   Search as SearchIcon,
   Chat as ChatIcon,
   Phone as PhoneIcon,
+  Work as WorkIcon,
+  Assignment as AssignmentIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -35,6 +37,8 @@ const menuItems = [
   { text: 'Компании', icon: <BusinessIcon />, path: '/companies' },
   { text: 'Загрузить резюме', icon: <DescriptionIcon />, path: '/cv' },
   { text: 'Поиск профилей', icon: <SearchIcon />, path: '/search' },
+  { text: 'Вакансии', icon: <WorkIcon />, path: '/jobs' },
+  { text: 'Мои вакансии', icon: <AssignmentIcon />, path: '/jobs/my' },
   { text: 'Чат', icon: <ChatIcon />, path: '/chat' },
   { text: 'История звонков', icon: <PhoneIcon />, path: '/calls' },
 ];

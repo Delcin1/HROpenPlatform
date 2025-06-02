@@ -1,0 +1,7 @@
+package: job
+output: ./backend/platform_service/internal/router/job/job.gen.go
+generate:
+  models: true
+  chi-server: true
+compatibility:
+  apply-chi-middleware-first-to-last: true
