@@ -162,6 +162,16 @@ export const Chat = () => {
           return;
         }
 
+        // Обрабатываем завершение звонка
+        if (parsedMessage.type === 'call-ended') {
+          console.log('📞 Received call-ended message - ending call for all participants');
+          setIsVideoCallActive(false);
+          setActiveCallId(null);
+          setIncomingCall(null);
+          setIsIncomingCall(false);
+          return;
+        }
+
         setMessages((prev) => {
           if (!Array.isArray(prev)) return [parsedMessage];
           if (prev.some(m => m.id === parsedMessage.id)) {
@@ -260,8 +270,11 @@ export const Chat = () => {
   };
 
   const handleEndVideoCall = () => {
+    console.log('📞 Ending video call - resetting all states');
     setIsVideoCallActive(false);
     setActiveCallId(null);
+    setIncomingCall(null);
+    setIsIncomingCall(false);
   };
 
   const handleAcceptCall = () => {

@@ -4,12 +4,14 @@ import (
 	"PlatformService/internal/models"
 	"PlatformService/internal/repository"
 	"PlatformService/internal/repository/call"
+	"PlatformService/internal/utils"
 	"context"
 	"encoding/json"
 	"log/slog"
 	"sync"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -260,9 +262,9 @@ func (s *service) BroadcastCallSignal(ctx context.Context, chatID string, fromUs
 		}
 
 		// Преобразуем UUID в строки для пользователей
-		users := make([]string, len(chatData.Users.([]uuid.UUID)))
-		for i, userID := range chatData.Users.([]uuid.UUID) {
-			users[i] = userID.String()
+		users, err := utils.UUIDArrayToStringArray(chatData.Users.(pgtype.UUIDArray))
+		if err != nil {
+			return err
 		}
 
 		chat = &models.Chat{

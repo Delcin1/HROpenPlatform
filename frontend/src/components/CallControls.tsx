@@ -19,6 +19,7 @@ interface CallControlsProps {
   onRejectCall: () => void;
   onEndCall: () => void;
   onSignal: (signal: any) => void;
+  wsRef?: React.MutableRefObject<WebSocket | null>;
 }
 
 export const CallControls: React.FC<CallControlsProps> = ({
@@ -29,6 +30,7 @@ export const CallControls: React.FC<CallControlsProps> = ({
   onRejectCall,
   onEndCall,
   onSignal,
+  wsRef,
 }) => {
   if (isCallActive) {
     return (
@@ -45,6 +47,7 @@ export const CallControls: React.FC<CallControlsProps> = ({
           onSignal={onSignal}
           onEndCall={onEndCall}
           isIncoming={isIncomingCall}
+          wsRef={wsRef}
         />
       </Dialog>
     );

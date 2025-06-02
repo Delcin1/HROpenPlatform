@@ -404,6 +404,15 @@ export const VideoCallWithTranscript: React.FC<VideoCallWithTranscriptProps> = (
     isInitializedRef.current = false;
     speechStartedRef.current = false; // Сбрасываем флаг речевого распознавания
     
+    // Отправляем сообщение о завершении звонка через WebSocket
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      console.log('📤 Sending call-end message...');
+      wsRef.current.send(JSON.stringify({
+        type: 'call-end',
+        timestamp: new Date().toISOString(),
+      }));
+    }
+    
     // Останавливаем распознавание речи
     try {
       stopListening();
@@ -420,11 +429,13 @@ export const VideoCallWithTranscript: React.FC<VideoCallWithTranscriptProps> = (
       console.error('Error ending WebRTC call:', e);
     }
     
-    // Закрываем WebSocket
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      console.log('🔌 Closing WebSocket...');
-      wsRef.current.close();
-    }
+    // Закрываем WebSocket (с небольшой задержкой чтобы сообщение успело отправиться)
+    setTimeout(() => {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        console.log('🔌 Closing WebSocket...');
+        wsRef.current.close();
+      }
+    }, 100);
     
     // Вызываем коллбек родительского компонента
     onEndCall?.();

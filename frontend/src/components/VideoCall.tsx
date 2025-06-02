@@ -13,12 +13,14 @@ interface VideoCallProps {
   onSignal: (signal: any) => void;
   onEndCall: () => void;
   isIncoming?: boolean;
+  wsRef?: React.MutableRefObject<WebSocket | null>;
 }
 
 export const VideoCall: React.FC<VideoCallProps> = ({
   onSignal,
   onEndCall,
   isIncoming = false,
+  wsRef,
 }) => {
   const {
     localStream,
@@ -47,6 +49,14 @@ export const VideoCall: React.FC<VideoCallProps> = ({
   }, [remoteStream]);
 
   const handleEndCall = () => {
+    if (wsRef?.current?.readyState === WebSocket.OPEN) {
+      console.log('📤 Sending call-end message...');
+      wsRef.current.send(JSON.stringify({
+        type: 'call-end',
+        timestamp: new Date().toISOString(),
+      }));
+    }
+    
     endCall();
     onEndCall();
   };
