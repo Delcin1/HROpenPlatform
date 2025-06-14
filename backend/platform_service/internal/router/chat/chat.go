@@ -304,9 +304,18 @@ func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request, chatId 
 			}
 
 			// Если это не сигнал видеозвонка, обрабатываем как обычное сообщение
-			_, err = s.services.Chat.SendMessage(r.Context(), chatId, claims.UserGUID, string(message))
+			parsedMessage := new(Message)
+			err = json.Unmarshal(message, parsedMessage)
 			if err != nil {
-				s.log.Error("Error sending chat message", "error", err)
+				s.log.ErrorContext(ctx, "failed to unmarshal message", "error", err)
+				continue
+			}
+
+			if parsedMessage.User.Id != claims.UserGUID {
+				_, err = s.services.Chat.SendMessage(r.Context(), chatId, claims.UserGUID, string(message))
+				if err != nil {
+					s.log.Error("Error sending chat message", "error", err)
+				}
 			}
 		}
 	}()

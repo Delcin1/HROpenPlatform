@@ -17,6 +17,7 @@ import (
 type Service interface {
 	UploadFile(ctx context.Context, file io.Reader, filename string) (string, error)
 	GetFile(ctx context.Context, filename string) (io.ReadCloser, error)
+	GetFileObject(ctx context.Context, filename string) (*minio.Object, error)
 }
 
 type service struct {
@@ -55,6 +56,10 @@ func NewService(cfg *config.Config) (Service, error) {
 		client: client,
 		bucket: cfg.MinioBucket,
 	}, nil
+}
+
+func (s *service) GetFileObject(ctx context.Context, filename string) (*minio.Object, error) {
+	return s.client.GetObject(ctx, s.bucket, filename, minio.GetObjectOptions{})
 }
 
 func (s *service) GetFile(ctx context.Context, filename string) (io.ReadCloser, error) {

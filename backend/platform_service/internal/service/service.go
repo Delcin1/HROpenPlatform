@@ -14,6 +14,7 @@ import (
 	"PlatformService/internal/service/profile"
 	"PlatformService/internal/service/storage"
 	"context"
+	"github.com/minio/minio-go/v7"
 	"io"
 	"log/slog"
 	"mime/multipart"
@@ -58,6 +59,7 @@ type CVService interface {
 type StorageService interface {
 	UploadFile(ctx context.Context, file io.Reader, filename string) (string, error)
 	GetFile(ctx context.Context, filename string) (io.ReadCloser, error)
+	GetFileObject(ctx context.Context, filename string) (*minio.Object, error)
 }
 
 type ChatService interface {
@@ -106,12 +108,14 @@ func NewServices(cfg *config.Config, repo *repository.Repositories, log *slog.Lo
 
 	deepSeekService := deepseek.NewService(cfg)
 
+	profileService := profile.NewService(repo)
+
 	return &Services{
 		Auth:     auth.NewService(cfg, repo),
-		Profile:  profile.NewService(repo),
+		Profile:  profileService,
 		Company:  company.NewService(repo),
 		CV:       cv.NewService(repo, storageService, deepSeekService, cfg.ServerFullAddress),
-		Chat:     chat.NewService(repo),
+		Chat:     chat.NewService(repo, profileService),
 		Call:     call.NewService(repo, log),
 		Job:      job.NewService(repo),
 		Storage:  storageService,

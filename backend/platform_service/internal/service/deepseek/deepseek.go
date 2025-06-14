@@ -73,6 +73,8 @@ func (s *service) AnalyzeResume(ctx context.Context, resumeContent string) (*mod
 	if err != nil {
 		return nil, fmt.Errorf("failed to analyze resume: %w", err)
 	}
+	response = strings.Replace(response, "```json", "", -1)
+	response = strings.Replace(response, "```", "", -1)
 
 	var result models.DeepSeekAnalysisResponse
 	if err := json.Unmarshal([]byte(response), &result); err != nil {

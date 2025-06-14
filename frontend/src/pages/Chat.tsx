@@ -172,12 +172,21 @@ export const Chat = () => {
           return;
         }
 
+        // Проверяем, что сообщение относится к текущему выбранному чату
+        if (parsedMessage.chat_id !== selectedChat) {
+          console.log('⚠️ Message is for different chat, ignoring:', parsedMessage.chat_id, 'current:', selectedChat);
+          return;
+        }
+
+        console.log('📨 Adding WebSocket message to state:', parsedMessage);
         setMessages((prev) => {
           if (!Array.isArray(prev)) return [parsedMessage];
           if (prev.some(m => m.id === parsedMessage.id)) {
+            console.log('⚠️ Message already exists, skipping:', parsedMessage.id);
             return prev;
           }
-          return [parsedMessage, ...prev];
+          console.log('✅ Adding new message to end:', parsedMessage.id);
+          return [...prev, parsedMessage];
         });
       } catch (error) {
         console.error('Error processing message:', error);
@@ -193,9 +202,21 @@ export const Chat = () => {
 
   useEffect(() => {
     if (chatMessages) {
-      setMessages(Array.isArray(chatMessages) ? chatMessages : []);
+      const newMessages = Array.isArray(chatMessages) ? chatMessages : [];
+      console.log('📥 Received chatMessages from API for chat:', selectedChat, 'messages:', newMessages.length);
+      
+      // Сортируем сообщения по времени создания (старые первые, новые последние)
+      const sortedMessages = newMessages.sort((a, b) => 
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+      
+      console.log('📥 Messages sorted chronologically, count:', sortedMessages.length);
+      
+      // При получении сообщений от API всегда заменяем текущие сообщения
+      // Это безопасно для переключения чатов
+      setMessages(sortedMessages);
     }
-  }, [chatMessages]);
+  }, [chatMessages, selectedChat]);
 
   useEffect(() => {
     scrollToBottom();
@@ -209,16 +230,35 @@ export const Chat = () => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedChat) return;
 
+    console.log('📤 Sending message:', newMessage.trim());
     try {
-      const message = await ChatService.sendMessage(selectedChat, {
+      var message = await ChatService.sendMessage(selectedChat, {
         text: newMessage.trim(),
       });
+
+      if (typeof message === 'string') {
+        message = JSON.parse(message)
+      }
       
-      setMessages(prev => [...prev, message]);
+      console.log('📤 Message sent via API:', message);
+      
+      // Добавляем сообщение локально только если это не дубликат
+      setMessages(prev => {
+        if (prev.some(m => m.id === message.id)) {
+          console.log('⚠️ Sent message already exists, skipping local add:', message.id);
+          return prev;
+        }
+        console.log('✅ Adding sent message locally:', message.id);
+        return [...prev, message];
+      });
       setNewMessage('');
       
-      // Также отправляем через WebSocket для real-time обновлений
-      sendMessage(newMessage.trim());
+      // Отправляем через WebSocket для уведомления других пользователей
+      // Отправляем весь объект сообщения для real-time обновлений
+      if (sendMessage) {
+        console.log('📡 Sending message via WebSocket:', message);
+        sendMessage(JSON.stringify(message));
+      }
     } catch (err) {
       console.error('Error sending message:', err);
     }
@@ -310,6 +350,9 @@ export const Chat = () => {
   };
 
   const handleChatSelect = (chatId: string) => {
+    console.log('🔄 Switching to chat:', chatId, 'from:', selectedChat);
+    // Очищаем сообщения при смене чата
+    setMessages([]);
     setSelectedChat(chatId);
   };
 

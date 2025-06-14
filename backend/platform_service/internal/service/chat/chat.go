@@ -26,15 +26,20 @@ type Service interface {
 	BroadcastMessage(chatID string, message []byte, excludeUserID string)
 }
 
+type ProfileService interface {
+	GetProfile(ctx context.Context, userID string) (*models.Profile, error)
+}
+
 type WebSocketConnection struct {
 	UserID string
 	Send   chan []byte
 }
 
 type service struct {
-	repo       *repository.Repositories
-	clients    map[string]map[*WebSocketConnection]bool
-	clientsMux sync.RWMutex
+	repo           *repository.Repositories
+	clients        map[string]map[*WebSocketConnection]bool
+	clientsMux     sync.RWMutex
+	profileService ProfileService
 }
 
 func (s *service) CreateChat(ctx context.Context, userIDs []string) (*models.Chat, error) {
@@ -259,7 +264,23 @@ func (s *service) SendMessage(ctx context.Context, chatID, userID, text string) 
 	// Broadcast message to all clients in the chat
 	s.clientsMux.RLock()
 	if clients, ok := s.clients[chatID]; ok {
-		messageJSON, err := json.Marshal(message)
+		profile, err := s.profileService.GetProfile(ctx, message.UserID)
+		if err != nil {
+			return nil, err
+		}
+
+		messageAPI := models.MessageAPI{
+			ChatId:    message.ChatID,
+			CreatedAt: message.CreatedAt,
+			Id:        message.ID,
+			Text:      message.Text,
+			User: models.ChatUserAPI{
+				Avatar:      profile.Avatar,
+				Description: profile.Description,
+				Id:          profile.Guid,
+			},
+		}
+		messageJSON, err := json.Marshal(messageAPI)
 		if err != nil {
 			s.clientsMux.RUnlock()
 			return nil, err
@@ -335,9 +356,10 @@ func (s *service) BroadcastMessage(chatID string, message []byte, excludeUserID 
 	}
 }
 
-func NewService(repo *repository.Repositories) Service {
+func NewService(repo *repository.Repositories, profileService ProfileService) Service {
 	return &service{
-		repo:    repo,
-		clients: make(map[string]map[*WebSocketConnection]bool),
+		repo:           repo,
+		clients:        make(map[string]map[*WebSocketConnection]bool),
+		profileService: profileService,
 	}
 }

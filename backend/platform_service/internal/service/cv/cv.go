@@ -12,14 +12,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/ledongthuc/pdf"
+	"github.com/minio/minio-go/v7"
 	"io"
 	"mime/multipart"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"unicode/utf8"
-
-	"github.com/dslipak/pdf"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
@@ -109,10 +109,19 @@ func (s *service) UploadResumeDatabase(ctx context.Context, userGUID string, arc
 
 	// Обрабатываем каждый файл в архиве
 	for _, zipFile := range zipReader.File {
+		filenameParts := strings.Split(zipFile.Name, "/")
+		if len(filenameParts) == 0 {
+			continue
+		}
+		fileName := filenameParts[len(filenameParts)-1]
+		if fileName == "" || strings.HasPrefix(fileName, ".") {
+			continue
+		}
+
 		processedCount++
 
 		// Проверяем расширение файла
-		ext := strings.ToLower(filepath.Ext(zipFile.Name))
+		ext := strings.ToLower(filepath.Ext(fileName))
 		if !isValidResumeFile(ext) {
 			failedCount++
 			continue
@@ -125,28 +134,23 @@ func (s *service) UploadResumeDatabase(ctx context.Context, userGUID string, arc
 			continue
 		}
 
-		fileContent, err := io.ReadAll(fileReader)
-		fileReader.Close()
-		if err != nil {
-			failedCount++
-			continue
-		}
-
-		// Генерируем уникальное имя файла
-		filename := fmt.Sprintf("%s_%s", uuid.New().String(), zipFile.Name)
-
 		// Загружаем файл в storage
-		_, err = s.storageService.UploadFile(ctx, bytes.NewReader(fileContent), filename)
+		fileName, err = s.storageService.UploadFile(ctx, fileReader, fileName)
 		if err != nil {
 			failedCount++
 			continue
 		}
 
 		// Создаем публичную ссылку
-		publicURL := fmt.Sprintf("%s/api/v1/cv/%s", s.serverFullAddress, filename)
+		publicURL := fmt.Sprintf("%s/api/v1/cv/%s", s.serverFullAddress, fileName)
 
 		// Анализируем резюме через DeepSeek
-		resumeText := extractTextFromFile(fileContent, ext)
+		resumeText, err := s.extractTextFromFile(ctx, fileName, ext)
+		if err != nil {
+			failedCount++
+			continue
+		}
+
 		analysis, err := s.deepSeekService.AnalyzeResume(ctx, resumeText)
 		if err != nil {
 			failedCount++
@@ -326,38 +330,155 @@ func isValidResumeFile(ext string) bool {
 	return false
 }
 
-func extractTextFromFile(content []byte, ext string) string {
+func (s *service) extractTextFromFile(ctx context.Context, filename, ext string) (string, error) {
+	object, err := s.storageService.GetFileObject(ctx, filename)
+	if err != nil {
+		return "", fmt.Errorf("failed to get file object: %w", err)
+	}
+
 	switch ext {
 	case ".txt":
-		return string(content)
+		ret, err := io.ReadAll(object)
+		if err != nil {
+			return "", fmt.Errorf("failed to read text file: %w", err)
+		}
+		return string(ret), nil
 	case ".pdf":
-		return extractTextFromPDF(content)
+		return extractTextFromPDF(object), nil
 	case ".doc", ".docx":
-		return extractTextFromDOCX(content)
+		content, err := io.ReadAll(object)
+		if err != nil {
+			return "", fmt.Errorf("failed to read text file: %w", err)
+		}
+		return extractTextFromDOCX(content), nil
 	default:
+		content, err := io.ReadAll(object)
+		if err != nil {
+			return "", fmt.Errorf("failed to read text file: %w", err)
+		}
 		// Пытаемся интерпретировать как текст если это валидный UTF-8
 		if utf8.Valid(content) {
-			return string(content)
+			return string(content), nil
 		}
-		return ""
+		return "", nil
 	}
 }
 
-func extractTextFromPDF(content []byte) string {
-	f, err := pdf.NewReader(bytes.NewReader(content), int64(len(content)))
+func extractTextFromPDF(object *minio.Object) string {
+	//ctx, err := pdfcpu.ReadContext(object, nil)
+	//if err != nil {
+	//	return ""
+	//}
+
+	stat, err := object.Stat()
 	if err != nil {
 		return ""
 	}
 
-	var buf bytes.Buffer
-	text, err := f.GetPlainText()
+	//reader, err := pdf.NewReader(object, stat.Size)
+	//if err != nil {
+	//	return ""
+	//}
+	//
+	//var b strings.Builder
+	//for i := 1; i <= reader.NumPage(); i++ {
+	//	// Initialize y co-ordinate for the page
+	//	y := 0.0
+	//	for _, t := range reader.Page(i).Content().Text {
+	//		// Check if we are on a new line
+	//		if t.Y != y {
+	//			y = t.Y
+	//			b.WriteString("\n")
+	//		}
+	//		b.WriteString(t.S)
+	//	}
+	//}
+	//
+	//return b.String()
+
+	//pageCount, err := pdfcpu.PageCount(object, nil)
+	//if err != nil {
+	//	return ""
+	//}
+	//
+	//sb := &strings.Builder{}
+	//for pageNum := range pageCount {
+	//	reader, err := pdfcpu.ExtractPage(ctx, pageNum)
+	//	if err != nil {
+	//		return ""
+	//	}
+	//	content, err := io.ReadAll(reader)
+	//	if err != nil {
+	//		return ""
+	//	}
+	//
+	//	sb.WriteString(string(content))
+	//}
+
+	//return sb.String()
+
+	f, err := pdf.NewReader(object, stat.Size)
 	if err != nil {
 		return ""
 	}
 
-	buf.ReadFrom(text)
+	sentences, err := f.GetStyledTexts()
+	if err != nil {
+		panic(err)
+	}
 
-	return buf.String()
+	sb := &strings.Builder{}
+	// Print all sentences
+	for _, sentence := range sentences {
+		sb.WriteString(sentence.S)
+	}
+	return sb.String()
+
+	//f, err := pdf.NewReader(object, stat.Size)
+	//if err != nil {
+	//	return ""
+	//}
+	//
+	//totalPage := f.NumPage()
+	//
+	//var buf bytes.Buffer
+	//
+	//for pageIndex := 1; pageIndex <= totalPage; pageIndex++ {
+	//
+	//	p := f.Page(pageIndex)
+	//	if p.V.IsNull() {
+	//		continue
+	//	}
+	//
+	//	var lastTextStyle pdf.Text
+	//	texts := p.Content().Text
+	//	for _, text := range texts {
+	//		if isSameSentence(text, lastTextStyle) {
+	//			lastTextStyle.S = lastTextStyle.S + text.S
+	//		} else {
+	//			fmt.Printf("Font: %s, Font-size: %f, x: %f, y: %f, content: %s \n", lastTextStyle.Font, lastTextStyle.FontSize, lastTextStyle.X, lastTextStyle.Y, lastTextStyle.S)
+	//			lastTextStyle = text
+	//		}
+	//	}
+	//
+	//	for _, text := range texts {
+	//		if lastY != text.Y {
+	//			if lastY > 0 {
+	//				buf.WriteString(line + "\n")
+	//				line = text.S
+	//			} else {
+	//				line += text.S
+	//			}
+	//		} else {
+	//			line += text.S
+	//		}
+	//
+	//		lastY = text.Y
+	//	}
+	//	buf.WriteString(line)
+	//}
+	//
+	//return buf.String()
 }
 
 func extractTextFromDOCX(content []byte) string {
