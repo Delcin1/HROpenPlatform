@@ -1,0 +1,177 @@
+version: "3.9"
+
+services:
+  hr-minio:
+    image: quay.io/minio/minio
+    command: server /data --console-address ":9090"
+    restart: always
+    ports:
+      - 9001:9000
+      - 9091:9090
+    volumes:
+      - ~/minio/data:/data
+      - ~/work/cert/minio:/root/.minio/certs
+    environment:
+      - MINIO_ROOT_USER=admin
+      - MINIO_ROOT_PASSWORD=Secure123$
+      - MINIO_DOMAIN=localhost:9000
+    healthcheck:
+      test: ["CMD-SHELL", "curl --insecure --silent --fail https://localhost:9000/minio/health/live || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - localnet
+
+  hr-victoria-metrics:
+    image: victoriametrics/victoria-metrics:latest
+    ports:
+      - "8430:8428"  # Порт для доступа к VictoriaMetrics
+    command:
+      - '-retentionPeriod=30'  # Период хранения данных в днях
+    volumes:
+      - victoria-metrics-data:/victoria-metrics-data  # Для хранения данных
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep victoria-metrics || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    networks:
+      - localnet
+
+  hr-vmagent:
+    image: victoriametrics/vmagent:latest
+    ports:
+      - "8429:8429"  # Порт для vmagent
+    command:
+      - '-promscrape.config=/etc/vmagent/config.yml'
+      - '-remoteWrite.url=http://hr-victoria-metrics:8428/api/v1/write'
+      - '-httpListenAddr=:8429'
+    volumes:
+      - ./backend/vmagent-config.yml:/etc/vmagent/config.yml:ro
+    restart: always
+    depends_on:
+      hr-victoria-metrics:
+        condition: service_healthy
+      hr-minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep vmagent || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - localnet
+
+  hr-postgres:
+    container_name: hr-postgres-container
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_DB: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - localnet
+
+  hr-migrations:
+    build:
+      context: ./backend/migrations
+      dockerfile: Dockerfile
+    environment:
+      - DB_HOST=hr-postgres
+      - DB_PORT=5432
+      - DB_NAME=hrplatform
+      - DB_USERNAME=backend
+      - DB_PASSWORD=your_password
+      - DB_SSLMODE=disable
+    depends_on:
+      hr-postgres:
+        condition: service_healthy
+    restart: "no"  # Миграции должны выполниться только один раз
+    networks:
+      - localnet
+
+  platform-service:
+    build:
+      context: ./backend/platform_service
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    environment:
+      - DB_HOST=hr-postgres
+      - DB_PORT=5432
+      - DB_NAME=hrplatform
+      - DB_USERNAME=backend
+      - DB_PASSWORD=your_password
+      - DB_SSLMODE=disable
+      - MINIO_ENDPOINT=hr-minio:9000
+      - MINIO_ACCESS_KEY=dtGvTuyDrxgzEm0nT567
+      - MINIO_SECRET_KEY=Ayr96jHhZN6jOF6eje6MqieI3Nb2lDItT4eFjhN1
+      - MINIO_USE_SSL=true
+      - MINIO_INSECURE=true
+      - MINIO_BUCKET=hr-platform
+      - VICTORIA_METRICS_PUSH_URL=http://hr-victoria-metrics:8428/api/v1/import
+    depends_on:
+      hr-postgres:
+        condition: service_healthy
+      hr-migrations:
+        condition: service_completed_successfully
+      hr-minio:
+        condition: service_healthy
+      hr-vmagent:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl --silent --fail http://localhost:8080/ping || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    networks:
+      - localnet
+
+  hr-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      platform-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -k --silent --fail http://localhost:80/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: always
+    networks:
+      - localnet
+
+networks:
+  localnet:
+    driver: bridge
+
+x-environment:
+  COMPOSE_PROJECT_NAME: hr_open_platform
+
+volumes:
+  victoria-metrics-data:
+  postgres-data:

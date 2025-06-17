@@ -1,4 +1,4 @@
- -- +goose Up
+-- +goose Up
 -- +goose StatementBegin
 
 CREATE SCHEMA profile;

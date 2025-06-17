@@ -1,0 +1,9 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'platform-service'
+    static_configs:
+      - targets: ['platform-service:8081']
+    scrape_interval: 30s
+    metrics_path: '/metrics'
